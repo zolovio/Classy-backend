@@ -14,22 +14,23 @@ class User(db.Model):
     firstname = db.Column(db.String(128), nullable=False)
     lastname = db.Column(db.String(128), nullable=False)
     email = db.Column(db.String(128), unique=True, nullable=False)
+    mobile_no = db.Column(db.String(128), unique=True, nullable=True)
     password = db.Column(db.String(255), unique=True, nullable=False)
     profile_picture = db.Column(db.String(128), default="", nullable=True)
-    gender = db.Column(db.String(128), nullable=True)
 
     active = db.Column(db.Boolean, default=True, nullable=False)
     account_suspension = db.Column(db.Boolean, default=False)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
-    document = db.relationship("Document", cascade="all, delete-orphan", backref=db.backref("user"))
+    location = db.relationship("Location", cascade="all, delete-orphan", backref=db.backref("user"))
 
     def __repr__(self):
         return f"User {self.id} {self.username}"
 
-    def __init__(self, firstname, lastname, email, password, is_admin=False):
+    def __init__(self, firstname:str, lastname:str, email:str, mobile_no:str, password:str, is_admin=False):
         self.firstname = firstname
         self.lastname = lastname
         self.email = email
+        self.mobile_no = mobile_no
         self.password = bcrypt.generate_password_hash(password, current_app.config.get("BCRYPT_LOG_ROUNDS")).decode()
         self.is_admin = is_admin
 
@@ -50,9 +51,9 @@ class User(db.Model):
             "firstname": self.firstname,
             "lastname": self.lastname,
             "email": self.email,
-            "profile_picture": self.profile_picture,
-            "gender": self.gender
-        }
+            "mobile_no": self.mobile_no,
+            "profile_picture": self.profile_picture
+            }
 
     def encode_auth_token(self, user_id):
         """
@@ -89,6 +90,50 @@ class User(db.Model):
             return 'Invalid token. Please log in again.'
 
 
+class Location(db.Model):
+    __tablename__ = "location"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    address = db.Column(db.String(128), nullable=False)
+    city = db.Column(db.String(128), nullable=False)
+    state = db.Column(db.String(128), nullable=False)
+    country = db.Column(db.String(128), nullable=False)
+    zipcode = db.Column(db.String(128), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+
+    def __repr__(self):
+        return f"Location {self.id} {self.address}"
+    
+    def __init__(self, address:str, city:str, state:str, country:str, zipcode:str, user_id:int):
+        self.address = address
+        self.city = city
+        self.state = state
+        self.country = country
+        self.zipcode = zipcode
+        self.user_id = user_id
+    
+    def insert(self):
+        db.session.add(self)
+        db.session.commit()
+
+    def update(self):
+        db.session.commit()
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
+
+    def to_json(self):
+        return {
+            "id": self.id,
+            "address": self.address,
+            "city": self.city,
+            "state": self.state,
+            "country": self.country,
+            "zipcode": self.zipcode,
+            "user_id": self.user_id
+        }
+        
 class BlacklistToken(db.Model):
     """
     Token Model for storing JWT tokens
