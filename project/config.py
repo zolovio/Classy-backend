@@ -6,11 +6,11 @@ database_password = os.getenv("DATABASE_PASSWORD")
 host = os.getenv("HOST")
 
 # set database url
-# database_path = "mysql://{}:{}@{}/{}".format(
-#     database_username, database_password, host, database_name
-# )
+database_path = "mysql://{}:{}@{}/{}".format(
+    database_username, database_password, host, database_name
+)
 # database_path = "sqlite:///db.sqlite3"
-database_path = "postgresql://postgres:postgres@127.0.0.1:5432/classy"
+# database_path = "postgresql://postgres:postgres@127.0.0.1:5432/classy"
 
 
 class Config:
