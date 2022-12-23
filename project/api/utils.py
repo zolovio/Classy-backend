@@ -4,39 +4,39 @@ from werkzeug.utils import secure_filename
 
 from project.exceptions import APIError
 
-ACCESS_KEY_ID=os.getenv('aws_access_key_id')
-ACCESS_SECRET_KEY=os.getenv('aws_secret_access_key')
+# ACCESS_KEY_ID=os.getenv('aws_access_key_id')
+# ACCESS_SECRET_KEY=os.getenv('aws_secret_access_key')
 
-REGION_NAME = "eu-west-1"
+# REGION_NAME = "eu-west-1"
 
-s3 = boto3.resource(
-    service_name='s3',
-    region_name=REGION_NAME,
-    aws_access_key_id=ACCESS_KEY_ID,
-    aws_secret_access_key=ACCESS_SECRET_KEY
-)
+# s3 = boto3.resource(
+#     service_name='s3',
+#     'region_name=REGION_NAME,
+#     aws_access_key_id=ACCESS_KEY_ID,
+#     aws_secret_access_key=ACCESS_SECRET_KEY
+# )
 
-client = boto3.client(
-    service_name='textract',
-    region_name=REGION_NAME,
-    aws_access_key_id=ACCESS_KEY_ID,
-    aws_secret_access_key = ACCESS_SECRET_KEY
-)
+# client = boto3.client(
+#     service_name='textract',
+#     'region_name=REGION_NAME,
+#     aws_access_key_id=ACCESS_KEY_ID,
+#     aws_secret_access_key = ACCESS_SECRET_KEY
+# )
 
-def upload_file(filename, filetype, bucket):
-    # upload file to s3
-    s3.Bucket(bucket).upload_file( 
-        Filename=filename,
-        Key=filename,
-        ExtraArgs={
-            'ACL':'public-read',        # *(if not mentioned, file will not be publically accessible)
-            'ContentType': filetype     # *(if not mentioned, file will be download-able only)
-        }
-    )
+# def upload_file(filename, filetype, bucket):
+#     # upload file to s3
+#     s3.Bucket(bucket).upload_file( 
+#         Filename=filename,
+#         Key=filename,
+#         ExtraArgs={
+#             'ACL':'public-read',        # *(if not mentioned, file will not be publically accessible)
+#             'ContentType': filetype     # *(if not mentioned, file will be download-able only)
+#         }
+#     )
 
-    object_url = "https://{}.s3.{}.amazonaws.com/{}".format(bucket, REGION_NAME, filename)
+#     object_url = "https://{}.s3.{}.amazonaws.com/{}".format(bucket, REGION_NAME, filename)
 
-    return object_url
+#     return object_url
 
 
 def secure_file(user_id, file, date) -> dict:
@@ -68,30 +68,30 @@ def secure_file(user_id, file, date) -> dict:
     }
 
 
-def extract_data(document, bucket):
-    response = client.analyze_expense(
-        Document={
-            'S3Object': {
-                'Bucket': bucket,
-                'Name': document
-            }
-        }
-    )
+# def extract_data(document, bucket):
+#     response = client.analyze_expense(
+#         Document={
+#             'S3Object': {
+#                 'Bucket': bucket,
+#                 'Name': document
+#             }
+#         }
+#     )
 
-    return response
+#     return response
 
 
-def get_s3_buckets():
-    data = {}
+# def get_s3_buckets():
+#     data = {}
 
-    for bucket in s3.buckets.all():
-        data[bucket.name] = []
+#     for bucket in s3.buckets.all():
+#         data[bucket.name] = []
 
-        for obj in s3.Bucket(bucket.name).objects.all():
-            data[bucket.name].append({
-                "filename": obj.key,
-                "type": obj.key.split('.')[-1],
-                "object_url": "https://{}.s3.{}.amazonaws.com/{}".format(bucket.name, REGION_NAME, obj.key)
-            })
+#         for obj in s3.Bucket(bucket.name).objects.all():
+#             data[bucket.name].append({
+#                 "filename": obj.key,
+#                 "type": obj.key.split('.')[-1],
+#                 "object_url": "https://{}.s3.{}.amazonaws.com/{}".format(bucket.name, REGION_NAME, obj.key)
+#             })
 
-    return data
+#     return data

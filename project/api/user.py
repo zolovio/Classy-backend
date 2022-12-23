@@ -4,18 +4,18 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 from flask import current_app
 
-from project.models.user_model import User
-from project.api.utils import secure_file, upload_file
+from project.models.user_model import User, Location
+from project.api.utils import secure_file #, upload_file
 from project.api.authentications import authenticate
 
 from project import db, bcrypt
 from project.exceptions import APIError
 from project.api.validators import email_validator, field_type_validator, required_validator
 
-ACCESS_KEY_ID = os.getenv('aws_access_key_id')
-ACCESS_SECRET_KEY = os.getenv('aws_secret_access_key')
+# ACCESS_KEY_ID = os.getenv('aws_access_key_id')
+# ACCESS_SECRET_KEY = os.getenv('aws_secret_access_key')
 
-BUCKET_NAME = "alpha-ai-profile-picture"
+# BUCKET_NAME = "alpha-ai-profile-picture"
 
 user_blueprint = Blueprint('user', __name__, template_folder='templates')
 
@@ -57,29 +57,37 @@ def get_single_user(user_id):
     if not user:
         return jsonify(response_object), 404
 
+    location = Location.query.filter_by(user_id=int(user_id)).first()
+
     response_object['status'] = 'success'
     response_object['message'] = 'User details retrieved successfully'
+
     response_object['data'] = user.to_json()
+    response_object['data']['location'] = location.to_json()
 
     return jsonify(response_object), 200
 
 @user_blueprint.route('/users/get', methods=['GET'])
 @authenticate
-def get_user_by_auth_token(resp):
+def get_user_by_auth_token(user_id):
     """Get single user details"""
     response_object = {
         'status': 'fail',
         'message': 'User does not exist',
     }
 
-    user = User.query.filter_by(id=int(resp)).first()
+    user = User.query.filter_by(id=int(user_id)).first()
 
     if not user:
         return jsonify(response_object), 404
 
+    location = Location.query.filter_by(user_id=int(user_id)).first()
+
     response_object['status'] = 'success'
-    response_object['message'] = 'User details'
+    response_object['message'] = 'User details retrieved successfully'
+
     response_object['data'] = user.to_json()
+    response_object['data']['location'] = location.to_json()
 
     return jsonify(response_object), 200
 
@@ -97,11 +105,11 @@ def upload_picture(user_id):
             filename = secured_file["filename"] 
 
             # upload file to s3 bucket
-            object_url = upload_file(
-                secured_file["filename"], 
-                secured_file["filetype"],
-                BUCKET_NAME
-            )
+            # object_url = upload_file(
+            #     secured_file["filename"], 
+            #     secured_file["filetype"],
+            #     BUCKET_NAME
+            # )
 
             # delete file locally
             os.remove(filename)
@@ -114,8 +122,8 @@ def upload_picture(user_id):
                     'status': 'fail'
                 }), 400
 
-            user.profile_picture = object_url
-            user.update()
+            # user.profile_picture = object_url
+            # user.update()
 
             message = "File uploaded successfully!"
 
@@ -156,7 +164,7 @@ def update_user_info(resp):
 
         field_types = {
             "firstname": str, "lastname": str, "email": str, "password": str,
-            "current_password": str, "gender": str, "profile_picture": str, "active": bool
+            "mobile_no": str, "profile_picture": str, "active": bool
         }
 
         post_data = field_type_validator(post_data, field_types)
@@ -165,22 +173,12 @@ def update_user_info(resp):
         password = post_data.get('password')
 
         if password:
-            required_fields = ["current_password"]
-            required_validator(post_data, required_fields)
-
-            current_password = post_data.get('current_password')
-
-            if not bcrypt.check_password_hash(user.password, current_password.encode('utf-8')):
-                response_object['message'] = 'Current password is incorrect.'
-                return jsonify(response_object), 400
-
             user.password = bcrypt.generate_password_hash(password, current_app.config.get("BCRYPT_LOG_ROUNDS")).decode()
-            print(user.password)
 
         user.firstname = post_data.get('firstname') or user.firstname
         user.lastname = post_data.get('lastname') or user.lastname
         user.email = post_data.get('email') or user.email
-        user.gender = post_data.get("gender") or user.gender
+        user.gender = post_data.get("mobile_no") or user.mobile_no
         user.profile_picture = post_data.get('profile_picture') or user.profile_picture
         user.active = post_data.get('active') or user.active
 
@@ -189,6 +187,50 @@ def update_user_info(resp):
         response_object['status'] = 'success'
         response_object['message'] = 'User info updated successfully.'
         response_object['user'] = user.to_json()
+
+        return jsonify(response_object), 200
+
+    except Exception as e:
+        response_object['message'] = str(e)
+        return jsonify(response_object), 400
+
+
+@user_blueprint.route('/users/update_location', methods=['PUT'])
+@authenticate
+def update_user_location(user_id):
+    """Update user location"""
+
+    post_data = request.get_json()
+
+    response_object = {
+        'status': 'fail',
+        'message': 'Invalid payload.',
+    }
+
+    if not post_data:
+        return jsonify(response_object), 400
+
+    try:
+        location = Location.query.filter_by(user_id=int(user_id)).first()
+
+        field_types = {
+            "address": str, "city": str, "state": str, 
+            "country": str, "zipcode": str
+        }
+
+        post_data = field_type_validator(post_data, field_types)
+
+        location.address = post_data.get('address') or location.address
+        location.city = post_data.get('city') or location.city
+        location.state = post_data.get('state') or location.state
+        location.country = post_data.get('country') or location.country
+        location.zipcode = post_data.get('zipcode') or location.zipcode
+
+        location.update()
+
+        response_object['status'] = 'success'
+        response_object['message'] = 'User location updated successfully.'
+        response_object['location'] = location.to_json()
 
         return jsonify(response_object), 200
 
