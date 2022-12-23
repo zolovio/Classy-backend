@@ -50,6 +50,20 @@ def authenticate(f):
 
     return decorated_function
 
+def require_secure_transport(f):
+    @wraps(f)
+    def is_https(*args, **kwargs):
+        if request.scheme != "http":
+            return (
+                jsonify({"status": "Fail", "message": "Endpoint MUST utilize https."}),
+                400,
+            )
+
+        return f(*args, **kwargs)
+
+    return is_https
+
+
 def is_superadmin(auth_header):
     try:
         auth_token = auth_header.split(" ")[1]
