@@ -4,6 +4,7 @@
 ```bash
 # clone this repo
 $ git clone 'https://github.com/zolovio/Classy-backend.git'
+$ git clone 'git@github.com:zolovio/Classy-backend.git'
 
 # create and activate python environment
 $ python3 -m venv .classy-venv  
