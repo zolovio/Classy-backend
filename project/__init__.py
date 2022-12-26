@@ -1,4 +1,5 @@
-import os, logging
+import os
+import logging
 from dotenv import load_dotenv
 
 from flask import Flask
@@ -17,6 +18,7 @@ db = SQLAlchemy()
 toolbar = DebugToolbarExtension()
 migrate = Migrate()
 bcrypt = Bcrypt()
+
 
 def create_app(script_info=None):
     # instantiate the app
@@ -52,6 +54,8 @@ def create_app(script_info=None):
     app.register_blueprint(user_blueprint)
     from project.api.auth import auth_blueprint
     app.register_blueprint(auth_blueprint)
+    from project.api.sku import sku_blueprint
+    app.register_blueprint(sku_blueprint)
 
     @app.errorhandler(Exception)
     def manage_exception(ex):
