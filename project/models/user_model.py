@@ -7,6 +7,8 @@ from project import db, bcrypt
 """
     Create Models
 """
+
+
 class User(db.Model):
     __tablename__ = "user"
 
@@ -18,20 +20,25 @@ class User(db.Model):
     password = db.Column(db.String(255), unique=True, nullable=False)
     profile_picture = db.Column(db.String(128), default="", nullable=True)
 
+    role = db.Column(db.String(128), default="user", nullable=False)
     active = db.Column(db.Boolean, default=True, nullable=False)
     account_suspension = db.Column(db.Boolean, default=False)
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
-    location = db.relationship("Location", cascade="all, delete-orphan", backref=db.backref("user"))
+    location = db.relationship(
+        "Location", cascade="all, delete-orphan", backref=db.backref("user"))
 
     def __repr__(self):
         return f"User {self.id} {self.username}"
 
-    def __init__(self, firstname:str, lastname:str, email:str, mobile_no:str, password:str, is_admin=False):
+    def __init__(self, firstname: str, lastname: str, email: str, mobile_no: str, password: str,
+                 role: str = "user", is_admin: bool = False):
         self.firstname = firstname
         self.lastname = lastname
         self.email = email
         self.mobile_no = mobile_no
-        self.password = bcrypt.generate_password_hash(password, current_app.config.get("BCRYPT_LOG_ROUNDS")).decode()
+        self.password = bcrypt.generate_password_hash(
+            password, current_app.config.get("BCRYPT_LOG_ROUNDS")).decode()
+        self.role = role
         self.is_admin = is_admin
 
     def insert(self):
@@ -53,7 +60,7 @@ class User(db.Model):
             "email": self.email,
             "mobile_no": self.mobile_no,
             "profile_picture": self.profile_picture
-            }
+        }
 
     def encode_auth_token(self, user_id):
         """
@@ -82,7 +89,8 @@ class User(db.Model):
         Decodes the auth token - :param auth_token: - :return: integer|string
         """
         try:
-            payload = jwt.decode(auth_token, current_app.config.get('SECRET_KEY'))
+            payload = jwt.decode(
+                auth_token, current_app.config.get('SECRET_KEY'))
             return payload['sub']
         except jwt.ExpiredSignatureError:
             return 'Signature expired. Please log in again.'
@@ -103,15 +111,15 @@ class Location(db.Model):
 
     def __repr__(self):
         return f"Location {self.id} {self.address}"
-    
-    def __init__(self, address:str, city:str, state:str, country:str, zipcode:str, user_id:int):
+
+    def __init__(self, address: str, city: str, state: str, country: str, zipcode: str, user_id: int):
         self.address = address
         self.city = city
         self.state = state
         self.country = country
         self.zipcode = zipcode
         self.user_id = user_id
-    
+
     def insert(self):
         db.session.add(self)
         db.session.commit()
@@ -133,7 +141,8 @@ class Location(db.Model):
             "zipcode": self.zipcode,
             "user_id": self.user_id
         }
-        
+
+
 class BlacklistToken(db.Model):
     """
     Token Model for storing JWT tokens
@@ -173,7 +182,8 @@ class BlacklistToken(db.Model):
     def delete_blacklisted_token(token):
         try:
             # get the token
-            blacklist_token = BlacklistToken.query.filter_by(token=token).first()
+            blacklist_token = BlacklistToken.query.filter_by(
+                token=token).first()
             # delete the token
             blacklist_token.delete()
             return {
