@@ -56,6 +56,10 @@ def create_app(script_info=None):
     app.register_blueprint(auth_blueprint)
     from project.api.sku import sku_blueprint
     app.register_blueprint(sku_blueprint)
+    from project.api.prize import prize_blueprint
+    app.register_blueprint(prize_blueprint)
+    from project.api.campaign import campaign_blueprint
+    app.register_blueprint(campaign_blueprint)
 
     @app.errorhandler(Exception)
     def manage_exception(ex):
