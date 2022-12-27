@@ -248,6 +248,7 @@ class Campaign(db.Model):
         - name: str
         - description: str
         - image (url): str
+        - threshold: int
 
         - start_date: datetime
         - end_date: datetime
@@ -269,6 +270,7 @@ class Campaign(db.Model):
     name = db.Column(db.String(128), nullable=False)
     description = db.Column(db.String(128), nullable=False)
     image = db.Column(db.String(128), nullable=False)
+    threshold = db.Column(db.Integer, nullable=False)
 
     is_active = db.Column(db.Boolean, nullable=False, default=False)
 
@@ -278,13 +280,15 @@ class Campaign(db.Model):
     def __repr__(self):
         return f"Campaign {self.id} {self.name}"
 
-    def __init__(self, user_id: int, sku_id: int, prize_id: int,
+    def __init__(self, user_id: int, sku_id: int, prize_id: int, threshold: int,
                  name: str, description: str, image: str,
                  start_date: str, end_date: str):
 
         self.name = name
         self.description = description
         self.image = image
+        self.threshold = threshold
+
         self.start_date = start_date
         self.end_date = end_date
 
@@ -312,6 +316,7 @@ class Campaign(db.Model):
             "name": self.name,
             "description": self.description,
             "image": self.image,
+            "threshold": self.threshold,
             "is_active": self.is_active,
             "start_date": self.start_date.strftime("%Y-%m-%d") if self.start_date else None,
             "end_date": self.end_date.strftime("%Y-%m-%d") if self.end_date else None
