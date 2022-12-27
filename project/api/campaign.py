@@ -136,7 +136,7 @@ def get_closing_campaigns():
     return jsonify(response_object), 200
 
 
-@campaign_blueprint.route('/campaign/create', methods=['POST'])
+@campaign_blueprint.route('/campaign/register', methods=['POST'])
 @authenticate
 def create_campaign(user_id):
     """Create new campaign"""
@@ -145,7 +145,7 @@ def create_campaign(user_id):
                    'sku_id': int, 'image_url': str, 'start_date': str, 'end_date': str}
 
     required_fields = list(field_types.keys())
-    required_fields.remove('image_url', 'start_date', 'end_date', 'threshold')
+    required_fields.remove('start_date', 'end_date', 'threshold')
 
     post_data = field_type_validator(post_data, field_types)
     required_validator(post_data, required_fields)
@@ -160,7 +160,7 @@ def create_campaign(user_id):
                 prize_id=post_data.get('prize_id'),
                 threadhold=post_data.get('threshold') or 80,  # default 80%
                 sku_id=post_data.get('sku_id'),
-                image_url=post_data.get('image_url'),
+                image=post_data.get('image_url'),
                 start_date=post_data.get('start_date'),
                 end_date=post_data.get('end_date'),
                 user_id=user_id
@@ -215,7 +215,7 @@ def update_campaign(user_id, campaign_id):
     campaign.description = post_data.get('description') or campaign.description
     campaign.prize_id = post_data.get('prize_id') or campaign.prize_id
     campaign.sku_id = post_data.get('sku_id') or campaign.sku_id
-    campaign.image_url = post_data.get('image_url') or campaign.image_url
+    campaign.image = post_data.get('image_url') or campaign.image
     campaign.threshold = post_data.get('threshold') or campaign.threshold
     campaign.start_date = post_data.get('start_date') or campaign.start_date
     campaign.end_date = post_data.get('end_date') or campaign.end_date
