@@ -78,10 +78,9 @@ def get_campaign_status(user_id, campaign_id):
     }
 
     try:
-        args = field_type_validator(request.args, {'is_active': bool})
-        required_validator(args, ['is_active'], "Parameter")
+        required_validator(request.args, ['is_active'], "Parameter")
 
-        is_active = args.get('is_active')
+        is_active = bool(int(request.args.get('is_active')))
         campaign = Campaign.query.filter(Campaign.id == int(
             campaign_id), Campaign.user_id == int(user_id)).first()
 
@@ -145,7 +144,9 @@ def create_campaign(user_id):
                    'sku_id': int, 'image_url': str, 'start_date': str, 'end_date': str}
 
     required_fields = list(field_types.keys())
-    required_fields.remove('start_date', 'end_date', 'threshold')
+    required_fields.remove('start_date')
+    required_fields.remove('end_date')
+    required_fields.remove('threshold')
 
     post_data = field_type_validator(post_data, field_types)
     required_validator(post_data, required_fields)
@@ -158,7 +159,7 @@ def create_campaign(user_id):
                 name=post_data.get('name'),
                 description=post_data.get('description'),
                 prize_id=post_data.get('prize_id'),
-                threadhold=post_data.get('threshold') or 80,  # default 80%
+                threshold=post_data.get('threshold') or 80,  # default 80%
                 sku_id=post_data.get('sku_id'),
                 image=post_data.get('image_url'),
                 start_date=post_data.get('start_date'),
