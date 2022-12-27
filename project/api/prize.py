@@ -67,7 +67,7 @@ def get_prize(user_id):
     return jsonify(response_object), 200
 
 
-@prize_blueprint.route('/prize/create', methods=['POST'])
+@prize_blueprint.route('/prize/register', methods=['POST'])
 @authenticate
 def create_prize(user_id):
     """Create new prize"""
@@ -75,7 +75,6 @@ def create_prize(user_id):
     field_types = {'name': str, 'description': str, 'image_url': str}
 
     required_fields = list(field_types.keys())
-    required_fields.remove('image_url')
 
     post_data = field_type_validator(post_data, field_types)
     required_validator(post_data, required_fields)
@@ -87,6 +86,7 @@ def create_prize(user_id):
             prize = Prize(
                 name=post_data.get('name'),
                 description=post_data.get('description'),
+                image=post_data.get('image_url'),
                 user_id=user_id
             )
             prize.insert()
@@ -136,7 +136,7 @@ def update_prize(user_id, prize_id):
 
     prize.name = post_data.get('name') or prize.name
     prize.description = post_data.get('description') or prize.description
-    prize.image_url = post_data.get('image_url') or prize.image_url
+    prize.image = post_data.get('image_url') or prize.image
 
     prize.update()
 
