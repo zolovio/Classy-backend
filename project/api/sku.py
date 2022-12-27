@@ -96,6 +96,16 @@ def add_sku(user_id):
     post_data = field_type_validator(post_data, field_types)
     required_validator(post_data, required_fields)
 
+    sku = Sku.query.filter(Sku.name == post_data.get('name'),
+                           Sku.user_id == int(user_id)).first()
+
+    if (sku):
+        response_object = {
+            'status': 'fail',
+            'message': 'Sku already exists.',
+        }
+        return jsonify(response_object), 400
+
     try:
         sku = Sku(
             name=post_data.get('name'),
