@@ -48,10 +48,6 @@ class Sku(db.Model):
         "Sku_Images", cascade="all, delete-orphan", backref=db.backref("sku"))
     sku_stock = db.relationship(
         "Sku_Stock", cascade="all, delete-orphan", backref=db.backref("sku"))
-    campaign = db.relationship(
-        "Campaign", cascade="all, delete-orphan", backref=db.backref("sku"))
-    prize = db.relationship(
-        "Prize", cascade="all, delete-orphan", backref=db.backref("sku"))
 
     def __repr__(self):
         return f"SKU {self.id} {self.name}"
@@ -192,7 +188,6 @@ class Prize(db.Model):
         - id: int
         - user_id: int
 
-
         - name: str
         - description: str
         - image (url): str
@@ -202,7 +197,6 @@ class Prize(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    sku_id = db.Column(db.Integer, db.ForeignKey("sku.id"), nullable=False)
 
     name = db.Column(db.String(128), nullable=False)
     description = db.Column(db.String(128), nullable=False)
@@ -232,7 +226,6 @@ class Prize(db.Model):
         return {
             "id": self.id,
             "user_id": self.user_id,
-            "sku_id": self.sku_id,
             "name": self.name,
             "description": self.description,
             "image": self.image
@@ -274,8 +267,13 @@ class Campaign(db.Model):
 
     is_active = db.Column(db.Boolean, nullable=False, default=False)
 
-    start_date = db.Column(db.DateTime, nullable=False)
-    end_date = db.Column(db.DateTime, nullable=False)
+    start_date = db.Column(db.DateTime, nullable=True)
+    end_date = db.Column(db.DateTime, nullable=True)
+
+    sku = db.relationship(
+        "Sku", cascade="all, delete-orphan", single_parent=True, backref=db.backref("campaign"))
+    prize = db.relationship(
+        "Prize", cascade="all, delete-orphan", single_parent=True, backref=db.backref("campaign"))
 
     def __repr__(self):
         return f"Campaign {self.id} {self.name}"
