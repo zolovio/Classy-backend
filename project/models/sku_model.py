@@ -348,19 +348,21 @@ class Coupon(db.Model):
 
     code = db.Column(db.String(128), nullable=False)
     datetime = db.Column(db.DateTime, nullable=False)
+    amount_paid = db.Column(db.Float, nullable=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
 
     def __repr__(self):
         return f"Coupon {self.id} {self.code}"
 
     def __init__(self, user_id: int, campaign_id: int, sku_images_id: int,
-                 sku_stock_id: int, datetime: str):
+                 sku_stock_id: int, datetime: str, amount_paid: float):
 
         self.user_id = user_id
         self.campaign_id = campaign_id
         self.sku_images_id = sku_images_id
         self.sku_stock_id = sku_stock_id
         self.datetime = datetime
+        self.amount_paid = amount_paid
         self.code = Coupon.generate_code(
             user_id, campaign_id, sku_stock_id, sku_images_id, datetime)
 
@@ -376,13 +378,18 @@ class Coupon(db.Model):
         db.session.commit()
 
     def to_json(self):
+        campaign = Campaign.query.get(self.campaign_id).to_json()
+        campaign['sku'].pop('sku_images')
+        campaign['sku'].pop('sku_stock')
+        campaign.pop('user')
+
         return {
             "id": self.id,
-            "user": User.query.get(self.user_id).to_json(),
-            "campaign": Campaign.query.get(self.campaign_id).to_json(),
+            "sku_name": campaign['sku']['name'],
+            "amount_paid": self.amount_paid,
             "sku_image": Sku_Images.query.get(self.sku_images_id).to_json(),
             "sku_stock": Sku_Stock.query.get(self.sku_stock_id).to_json(),
-            "code": self.code,
+            "coupon_code": self.code,
             "is_active": self.is_active,
             "purchased on": self.datetime.strftime("%d %b, %Y %I:%M%p")
         }
