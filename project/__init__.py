@@ -23,8 +23,7 @@ bcrypt = Bcrypt()
 def create_app(script_info=None):
     # instantiate the app
     app = Flask(__name__, static_url_path='')
-
-    logging.basicConfig(level=logging.DEBUG)
+    app.logger.setLevel(logging.INFO)
 
     # enable CORS
     CORS(app)
@@ -50,16 +49,18 @@ def create_app(script_info=None):
         return response
 
     # register blueprints
-    from project.api.user import user_blueprint
+    from project.api import user_blueprint
     app.register_blueprint(user_blueprint)
-    from project.api.auth import auth_blueprint
+    from project.api import auth_blueprint
     app.register_blueprint(auth_blueprint)
-    from project.api.sku import sku_blueprint
+    from project.api import sku_blueprint
     app.register_blueprint(sku_blueprint)
-    from project.api.prize import prize_blueprint
+    from project.api import prize_blueprint
     app.register_blueprint(prize_blueprint)
-    from project.api.campaign import campaign_blueprint
+    from project.api import campaign_blueprint
     app.register_blueprint(campaign_blueprint)
+    from project.api import shopping_blueprint
+    app.register_blueprint(shopping_blueprint)
 
     @app.errorhandler(Exception)
     def manage_exception(ex):
