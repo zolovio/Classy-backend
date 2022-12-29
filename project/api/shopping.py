@@ -155,11 +155,12 @@ def add_to_cart(user_id):
 
     response_object['status'] = 'success'
     response_object['message'] = 'Item added to cart'
+    response_object['id'] = cart_item.id
 
     return jsonify(response_object), 201
 
 
-@shopping_blueprint.route('/shopping/update_cart/<int:cart_item_id>', methods=['POST'])
+@shopping_blueprint.route('/shopping/update_cart/<int:cart_item_id>', methods=['PUT'])
 @authenticate
 def update_cart(user_id, cart_item_id):
     """Update item in cart"""
@@ -179,16 +180,28 @@ def update_cart(user_id, cart_item_id):
 
     quantity = post_data.get('quantity')
 
-    # check if cart item exists
+    # check if cart exists
+    shopping_cart = ShoppingCart.query.filter_by(user_id=user_id).first()
+    if not shopping_cart:
+        response_object['message'] = 'Cart does not exist'
+        return jsonify(response_object), 404
+
     cart_item = CartItem.query.get(cart_item_id)
+    # check if cart item exists
     if not cart_item:
         response_object['message'] = 'Cart item does not exist'
         return jsonify(response_object), 404
 
-    # check available stock
     stock = Sku_Stock.query.get(cart_item.sku_stock_id)
+    # check available stock
     if not stock:
         response_object['message'] = 'Stock does not exist'
+        return jsonify(response_object), 404
+
+    sku = Sku.query.get(stock.sku_id)
+    if not shopping_cart.is_active:
+        response_object['message'] = 'Cart containing item {} already checked out'.format(
+            sku.name)
         return jsonify(response_object), 404
 
     if quantity < cart_item.quantity:
