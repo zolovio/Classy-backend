@@ -17,7 +17,7 @@ class User(db.Model):
     lastname = db.Column(db.String(128), nullable=False)
     email = db.Column(db.String(128), unique=True, nullable=False)
     mobile_no = db.Column(db.String(128), unique=True, nullable=True)
-    password = db.Column(db.String(255), unique=True, nullable=False)
+    password = db.Column(db.String(255), nullable=False)
     profile_picture = db.Column(db.String(128), default="", nullable=True)
 
     role = db.Column(db.String(128), default="user", nullable=False)
