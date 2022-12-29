@@ -346,7 +346,7 @@ class Coupon(db.Model):
     sku_stock_id = db.Column(db.Integer, db.ForeignKey(
         "sku_stock.id"), nullable=False)
 
-    code = db.Column(db.String(128), nullable=False)
+    code = db.Column(db.String(128), unique=True, nullable=False)
     datetime = db.Column(db.DateTime, nullable=False)
     amount_paid = db.Column(db.Float, nullable=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
@@ -402,7 +402,7 @@ class Coupon(db.Model):
             upper_case_letters[sku_stock_id % 26] + \
             upper_case_letters[sku_images_id % 26]
 
-        digits = str(user_id) + '-' + str(campaign_id % 10) + \
-            str(sku_stock_id % 10) + str(sku_images_id % 10)
+        digits = str(user_id) + str(campaign_id % 10) + \
+            str(sku_images_id % 10) + str(sku_stock_id % 10)
 
-        return f"{letters}-{digits}-{datetime.strftime('%Y')}-{datetime.strftime('%m')}"
+        return f"{letters}-{digits}-{datetime.strftime('%m%d')}-{datetime.strftime('%M%S')}"
