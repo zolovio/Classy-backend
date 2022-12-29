@@ -4,7 +4,7 @@ from project.api.authentications import authenticate
 from project.exceptions import APIError
 from project.api.validators import field_type_validator, required_validator
 
-from project.models.sku_model import Campaign, Sku
+from project.models import Campaign, Sku, Prize
 
 campaign_blueprint = Blueprint(
     'campaign', __name__, template_folder='templates')
@@ -25,7 +25,7 @@ def get_all_campaign():
         'status': 'success',
         'message': 'All campaigns are returned successfully',
         'data': {
-            'campaign': [campaign.to_json() for campaign in Campaign.query.all()]
+            'campaign': [campaign.to_json() for campaign in Campaign.query.all() if campaign.is_active]
         }
     }
     return jsonify(response_object), 200
@@ -109,15 +109,18 @@ def get_campaign_status(user_id, campaign_id):
 @campaign_blueprint.route('/campaign/closing', methods=['GET'])
 def get_closing_campaigns():
     response_object = {
-        'status': 'success',
-        'message': 'All campaigns are returned successfully',
-        'data': {}
+        'status': 'fail',
+        'message': 'No closing campaign found',
+        'data': {'campaign': []}
     }
 
     campaigns = Campaign.query.all()
     closing_campaigns = []
 
     for campaign in campaigns:
+        if not campaign.is_active:
+            continue
+
         sku = Sku.query.get(campaign.sku_id)
 
         if (((sku.quantity - sku.number_sold) > 0) and
@@ -125,13 +128,13 @@ def get_closing_campaigns():
 
             closing_campaigns.append(campaign.to_json())
 
-    response_object = {
-        'status': 'success',
-        'message': 'All closing campaigns are returned successfully',
-        'data': {
-            'campaign': closing_campaigns
-        }
-    }
+    if len(closing_campaigns) == 0:
+        return jsonify(response_object), 200
+
+    response_object['status'] = 'success'
+    response_object['message'] = 'All closing campaigns are returned successfully'
+    response_object['data']['campaign'] = closing_campaigns
+
     return jsonify(response_object), 200
 
 
@@ -150,6 +153,24 @@ def create_campaign(user_id):
 
     post_data = field_type_validator(post_data, field_types)
     required_validator(post_data, required_fields)
+
+    # check if prize exists
+    prize = Prize.query.get(post_data.get('prize_id'))
+    if not prize:
+        response_object = {
+            'status': 'fail',
+            'message': 'Prize does not exist',
+        }
+        return jsonify(response_object), 400
+
+    # check if sku exists
+    sku = Sku.query.get(post_data.get('sku_id'))
+    if not sku:
+        response_object = {
+            'status': 'fail',
+            'message': 'Sku does not exist',
+        }
+        return jsonify(response_object), 400
 
     campaign = Campaign.query.filter(Campaign.name == post_data.get('name'),
                                      Campaign.user_id == int(user_id)).first()
@@ -198,7 +219,8 @@ def update_campaign(user_id, campaign_id):
     """Update campaign"""
     post_data = request.get_json()
     field_types = {'name': str, 'description': str, 'prize_id': int,
-                   'sku_id': int, 'image_url': str, 'start_date': str, 'end_date': str}
+                   'is_active': bool, 'threshold': int, 'sku_id': int,
+                   'image_url': str, 'start_date': str, 'end_date': str}
 
     post_data = field_type_validator(post_data, field_types)
 
@@ -220,6 +242,9 @@ def update_campaign(user_id, campaign_id):
     campaign.threshold = post_data.get('threshold') or campaign.threshold
     campaign.start_date = post_data.get('start_date') or campaign.start_date
     campaign.end_date = post_data.get('end_date') or campaign.end_date
+
+    campaign.is_active = post_data.get('is_active') if post_data.get('is_active') is not None \
+        else campaign.is_active
 
     campaign.update()
 

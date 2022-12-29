@@ -10,7 +10,7 @@ from project import db, bcrypt
 from project.api.credentials import *
 from project.api.authentications import authenticate, require_secure_transport
 from project.api.validators import email_validator, field_type_validator, required_validator
-from project.models.user_model import User, BlacklistToken, Location
+from project.models import User, BlacklistToken, Location
 from project.exceptions import APIError
 
 auth_blueprint = Blueprint('auth', __name__)
@@ -151,6 +151,7 @@ def register():
 
     required_fields = list(field_types.keys())
     required_fields.remove('profile_pic')
+    required_fields.remove('location')
 
     post_data = field_type_validator(post_data, field_types)
     required_validator(post_data, required_fields)
@@ -181,14 +182,15 @@ def register():
             new_user.profile_pic = profile_pic or None
             new_user.insert()
 
-            Location(
-                address=location.get('address'),
-                city=location.get('city'),
-                state=location.get('state'),
-                country=location.get('country'),
-                zipcode=location.get('zipcode'),
-                user_id=new_user.id
-            ).insert()
+            if location:
+                Location(
+                    address=location.get('address'),
+                    city=location.get('city'),
+                    state=location.get('state'),
+                    country=location.get('country'),
+                    zipcode=location.get('zipcode'),
+                    user_id=new_user.id
+                ).insert()
 
             auth_token = new_user.encode_auth_token(new_user.id)
             response_object = {

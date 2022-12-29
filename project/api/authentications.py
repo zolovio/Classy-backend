@@ -1,20 +1,22 @@
 from functools import wraps
 from flask import jsonify, request
 
-from project.models.user_model import User, BlacklistToken
+from project.models import User, BlacklistToken
+
 
 def authenticate(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        response_object = {"status": "fail", "message": "Provide a valid auth token."}
-        
+        response_object = {"status": "fail",
+                           "message": "Provide a valid auth token."}
+
         auth_header = request.headers.get("Authorization")
         if not auth_header:
             return jsonify(response_object), 401
 
         try:
             auth_token = auth_header.split(" ")[1]
-            
+
             if BlacklistToken.check_blacklist(auth_token):
                 response_object["message"] = "Token blacklisted. Please log in again."
                 return jsonify(response_object), 401
@@ -28,7 +30,7 @@ def authenticate(f):
             if is_superadmin(auth_header):
 
                 user = User.query.filter_by(id=user_id).first()
-                
+
                 if user:
                     return f(user_id, *args, **kwargs)
 
@@ -50,12 +52,14 @@ def authenticate(f):
 
     return decorated_function
 
+
 def require_secure_transport(f):
     @wraps(f)
     def is_https(*args, **kwargs):
         if request.scheme != "http":
             return (
-                jsonify({"status": "Fail", "message": "Endpoint MUST utilize https."}),
+                jsonify(
+                    {"status": "Fail", "message": "Endpoint MUST utilize https."}),
                 400,
             )
 
