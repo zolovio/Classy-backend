@@ -86,12 +86,15 @@ class CartItem(db.Model):
         campaign['sku'].pop('sku_images')
         campaign.pop('user')
 
+        campaign['sku']['sku_stock'] = Sku_Stock.query.get(
+            self.sku_stock_id).to_json()
+        campaign['sku']['sku_image'] = Sku_Images.query.get(
+            self.sku_images_id).to_json()
+
         return {
             "id": self.id,
             "cart_id": self.cart_id,
             "campaign": campaign,
-            "sku_stock": Sku_Stock.query.get(self.sku_stock_id).to_json(),
-            "sku_images": Sku_Images.query.get(self.sku_images_id).to_json(),
             "quantity": self.quantity,
             "reservation_date": self.reservation_date.strftime("%Y-%m-%d") if self.reservation_date else None
         }
