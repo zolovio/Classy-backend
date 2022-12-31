@@ -38,6 +38,7 @@ class Sku(db.Model):
     category = db.Column(db.String(128), nullable=False)
 
     price = db.Column(db.Float, nullable=False)
+    sales_tax = db.Column(db.Float, nullable=False, default=0.0)
     quantity = db.Column(db.Integer, nullable=False)
     number_sold = db.Column(db.Integer, nullable=False)
     number_delivered = db.Column(db.Integer, nullable=False)
@@ -86,6 +87,7 @@ class Sku(db.Model):
             "description": self.description,
             "category": self.category,
             "price": self.price,
+            "sales_tax": self.sales_tax,
             "quantity": self.quantity,
             "number_sold": self.number_sold,
             "number_delivered": self.number_delivered,
