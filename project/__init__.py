@@ -61,6 +61,8 @@ def create_app(script_info=None):
     app.register_blueprint(campaign_blueprint)
     from project.api import shopping_blueprint
     app.register_blueprint(shopping_blueprint)
+    from project.api import order_blueprint
+    app.register_blueprint(order_blueprint)
 
     @app.errorhandler(Exception)
     def manage_exception(ex):
