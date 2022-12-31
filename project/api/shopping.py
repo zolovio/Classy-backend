@@ -8,7 +8,18 @@ from project.api.authentications import authenticate
 from project.exceptions import APIError
 from project.api.validators import field_type_validator, required_validator
 
-from project.models import ShoppingCart, CartItem, Sku, Sku_Stock, Campaign, Coupon
+from project.models import (
+    User,
+    Location,
+    ShoppingCart,
+    CartItem,
+    Sku,
+    Sku_Stock,
+    Campaign,
+    Coupon,
+    Order,
+    Order_Sku
+)
 
 shopping_blueprint = Blueprint(
     'shopping', __name__, template_folder='./templates')
@@ -155,11 +166,12 @@ def add_to_cart(user_id):
 
     response_object['status'] = 'success'
     response_object['message'] = 'Item added to cart'
+    response_object['id'] = cart_item.id
 
     return jsonify(response_object), 201
 
 
-@shopping_blueprint.route('/shopping/update_cart/<int:cart_item_id>', methods=['POST'])
+@shopping_blueprint.route('/shopping/update_cart/<int:cart_item_id>', methods=['PUT'])
 @authenticate
 def update_cart(user_id, cart_item_id):
     """Update item in cart"""
@@ -179,16 +191,28 @@ def update_cart(user_id, cart_item_id):
 
     quantity = post_data.get('quantity')
 
-    # check if cart item exists
+    # check if cart exists
+    shopping_cart = ShoppingCart.query.filter_by(user_id=user_id).first()
+    if not shopping_cart:
+        response_object['message'] = 'Cart does not exist'
+        return jsonify(response_object), 404
+
     cart_item = CartItem.query.get(cart_item_id)
+    # check if cart item exists
     if not cart_item:
         response_object['message'] = 'Cart item does not exist'
         return jsonify(response_object), 404
 
-    # check available stock
     stock = Sku_Stock.query.get(cart_item.sku_stock_id)
+    # check available stock
     if not stock:
         response_object['message'] = 'Stock does not exist'
+        return jsonify(response_object), 404
+
+    sku = Sku.query.get(stock.sku_id)
+    if not shopping_cart.is_active:
+        response_object['message'] = 'Cart containing item {} already checked out'.format(
+            sku.name)
         return jsonify(response_object), 404
 
     if quantity < cart_item.quantity:
@@ -254,7 +278,7 @@ def remove_from_cart(user_id, cart_item_id):
     return jsonify(response_object), 201
 
 
-@shopping_blueprint.route('/shopping/checkout', methods=['POST'])
+@shopping_blueprint.route('/shopping/checkout', methods=['GET'])
 @authenticate
 def checkout(user_id):
     """Checkout cart"""
@@ -264,17 +288,6 @@ def checkout(user_id):
         'message': 'Invalid payload.'
     }
 
-    post_data = request.get_json()
-
-    field_types = {'total_tax': float}
-
-    required_fields = list(field_types.keys())
-
-    post_data = field_type_validator(post_data, field_types)
-    required_validator(post_data, required_fields)
-
-    total_tax = post_data.get('total_tax')
-
     # check if cart exists
     shopping_cart = ShoppingCart.query.filter_by(
         user_id=user_id, is_active=True).first()
@@ -283,60 +296,22 @@ def checkout(user_id):
         response_object['message'] = 'Cart does not exist'
         return jsonify(response_object), 404
 
+    # check if cart is already checked out
+    if shopping_cart.checkedout_at:
+        response_object['message'] = 'Cart already checked out'
+        return jsonify(response_object), 404
+
     # check if cart is empty
     cart_items = CartItem.query.filter_by(cart_id=shopping_cart.id).all()
     if not cart_items:
-        response_object['message'] = 'Cart is empty, please add items to cart'
+        response_object['message'] = 'Cart is empty, please add item(s) to cart'
         return jsonify(response_object), 404
 
-    total_amount = 0
-    for cart_item in cart_items:
-        campaign = Campaign.query.get(cart_item.campaign_id)
-        sku = Sku.query.get(campaign.sku_id)
-
-        total_amount += sku.price * cart_item.quantity
-
-        # create coupon
-        Coupon(
-            user_id=user_id,
-            campaign_id=campaign.id,
-            sku_images_id=cart_item.sku_images_id,
-            sku_stock_id=cart_item.sku_stock_id,
-            datetime=datetime.utcnow(),
-            amount_paid=(sku.price * cart_item.quantity),
-        ).insert()
-
-    # TODO: create order
-
-    # update cart
-    shopping_cart.is_active = False
     shopping_cart.checkedout_at = datetime.utcnow()
-
     shopping_cart.update()
 
     response_object['status'] = 'success'
-    response_object['message'] = 'Cart checked out'
-    response_object['data'] = {
-        'total_amount': total_amount,
-        'total_tax': total_tax,
-        'sub_total': total_amount + total_tax
-    }
+    response_object['message'] = 'Cart checked out at {}'.format(
+        shopping_cart.checkedout_at.strftime('%Y-%m-%d %H:%M:%S'))
 
     return jsonify(response_object), 201
-
-
-@shopping_blueprint.route('/shopping/get_coupon', methods=['GET'])
-@authenticate
-def get_coupon(user_id):
-    """Get coupon"""
-    coupons = Coupon.query.filter_by(user_id=user_id).all()
-
-    response_object = {
-        'status': 'success',
-        'message': 'Coupon retrieved',
-        'data': {
-            'coupon': [coupon.to_json() for coupon in coupons if coupon.is_active]
-        }
-    }
-
-    return jsonify(response_object), 200

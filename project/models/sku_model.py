@@ -38,6 +38,7 @@ class Sku(db.Model):
     category = db.Column(db.String(128), nullable=False)
 
     price = db.Column(db.Float, nullable=False)
+    sales_tax = db.Column(db.Float, nullable=False, default=0.0)
     quantity = db.Column(db.Integer, nullable=False)
     number_sold = db.Column(db.Integer, nullable=False)
     number_delivered = db.Column(db.Integer, nullable=False)
@@ -86,6 +87,7 @@ class Sku(db.Model):
             "description": self.description,
             "category": self.category,
             "price": self.price,
+            "sales_tax": self.sales_tax,
             "quantity": self.quantity,
             "number_sold": self.number_sold,
             "number_delivered": self.number_delivered,
@@ -346,7 +348,7 @@ class Coupon(db.Model):
     sku_stock_id = db.Column(db.Integer, db.ForeignKey(
         "sku_stock.id"), nullable=False)
 
-    code = db.Column(db.String(128), nullable=False)
+    code = db.Column(db.String(128), unique=True, nullable=False)
     datetime = db.Column(db.DateTime, nullable=False)
     amount_paid = db.Column(db.Float, nullable=False)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
@@ -402,7 +404,7 @@ class Coupon(db.Model):
             upper_case_letters[sku_stock_id % 26] + \
             upper_case_letters[sku_images_id % 26]
 
-        digits = str(user_id) + '-' + str(campaign_id % 10) + \
-            str(sku_stock_id % 10) + str(sku_images_id % 10)
+        digits = str(user_id) + str(campaign_id % 10) + \
+            str(sku_images_id % 10) + str(sku_stock_id % 10)
 
-        return f"{letters}-{digits}-{datetime.strftime('%Y')}-{datetime.strftime('%m')}"
+        return f"{letters}-{digits}-{datetime.strftime('%m%d')}-{datetime.strftime('%M%S')}"
