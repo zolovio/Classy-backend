@@ -1,10 +1,11 @@
+from datetime import datetime
 from flask import Blueprint, jsonify, request
 
 from project.api.authentications import authenticate
 from project.exceptions import APIError
 from project.api.validators import field_type_validator, required_validator
 
-from project.models import Campaign, Sku, Prize
+from project.models import Campaign, Sku, Prize, Draw
 
 campaign_blueprint = Blueprint(
     'campaign', __name__, template_folder='templates')
@@ -13,19 +14,36 @@ campaign_blueprint = Blueprint(
 @campaign_blueprint.route('/campaign/ping', methods=['GET'])
 def ping_pong():
     return jsonify({
-        'status': 'success',
+        'status': True,
         'message': 'pong V0.1!'
     })
 
 
 @campaign_blueprint.route('/campaign/list', methods=['GET'])
 def get_all_campaign():
-    """Get all campaign"""
+    """Get all active campaigns"""
+    campaigns = Campaign.query.all()
+
     response_object = {
-        'status': 'success',
-        'message': 'All campaigns are returned successfully',
+        'status': True,
+        'message': '{} active campaign(s) found'.format(len(campaigns)),
         'data': {
-            'campaign': [campaign.to_json() for campaign in Campaign.query.all() if campaign.is_active]
+            'campaign': [campaign.to_json() for campaign in campaigns if campaign.is_active]
+        }
+    }
+    return jsonify(response_object), 200
+
+
+@campaign_blueprint.route('/campaign/carousel', methods=['GET'])
+def get_carousel_campaign():
+    """Get all active campaigns"""
+    campaigns = Campaign.query.all()
+
+    response_object = {
+        'status': True,
+        'message': '{} active campaign(s) found'.format(len(campaigns)),
+        'data': {
+            'campaign': [campaign.to_json() for campaign in campaigns if campaign.is_active]
         }
     }
     return jsonify(response_object), 200
@@ -35,22 +53,21 @@ def get_all_campaign():
 def get_single_campaign(campaign_id):
     """Get single campaign details"""
     response_object = {
-        'status': 'fail',
+        'status': False,
         'message': 'Campaign does not exist',
     }
 
     campaign = Campaign.query.filter_by(id=int(campaign_id)).first()
 
     if not campaign:
-        return jsonify(response_object), 404
+        return jsonify(response_object), 200
 
-    response_object = {
-        'status': 'success',
-        'message': 'Campaign exists and is returned',
-        'data': {
-            'campaign': campaign.to_json()
-        }
+    response_object['status'] = True
+    response_object['message'] = 'Campaign exists and is returned'
+    response_object['data'] = {
+        'campaign': campaign.to_json()
     }
+
     return jsonify(response_object), 200
 
 
@@ -58,11 +75,12 @@ def get_single_campaign(campaign_id):
 @authenticate
 def get_campaign(user_id):
     """Get all campaign"""
+    campaigns = Campaign.query.filter_by(user_id=int(user_id)).all()
     response_object = {
-        'status': 'success',
-        'message': 'All campaigns are returned successfully',
+        'status': True,
+        'message': '{} campaign(s) found'.format(len(campaigns)),
         'data': {
-            'campaign': [campaign.to_json() for campaign in Campaign.query.filter_by(user_id=int(user_id)).all()]
+            'campaign': [campaign.to_json() for campaign in campaigns]
         }
     }
     return jsonify(response_object), 200
@@ -73,7 +91,7 @@ def get_campaign(user_id):
 def get_campaign_status(user_id, campaign_id):
     """Get single campaign details"""
     response_object = {
-        'status': 'fail',
+        'status': False,
         'message': 'Campaign does not exist',
     }
 
@@ -85,13 +103,14 @@ def get_campaign_status(user_id, campaign_id):
             campaign_id), Campaign.user_id == int(user_id)).first()
 
         if not campaign:
-            return jsonify(response_object), 404
+            return jsonify(response_object), 200
 
+        campaign.start_date = datetime.now() if is_active else None
         campaign.is_active = is_active
 
         campaign.update()
 
-        response_object['status'] = 'success'
+        response_object['status'] = True
         response_object['message'] = 'Campaign {} status updated to {}'.format(
             campaign.name, is_active)
 
@@ -109,9 +128,9 @@ def get_campaign_status(user_id, campaign_id):
 @campaign_blueprint.route('/campaign/closing', methods=['GET'])
 def get_closing_campaigns():
     response_object = {
-        'status': 'fail',
+        'status': True,
         'message': 'No closing campaign found',
-        'data': {'campaign': []}
+        'data': {}
     }
 
     campaigns = Campaign.query.all()
@@ -128,12 +147,9 @@ def get_closing_campaigns():
 
             closing_campaigns.append(campaign.to_json())
 
-    if len(closing_campaigns) == 0:
-        return jsonify(response_object), 200
-
-    response_object['status'] = 'success'
-    response_object['message'] = 'All closing campaigns are returned successfully'
-    response_object['data']['campaign'] = closing_campaigns
+    response_object['message'] = '{} closing campaign(s) found'.format(
+        len(closing_campaigns))
+    response_object['data'] = {'campaign': closing_campaigns}
 
     return jsonify(response_object), 200
 
@@ -142,40 +158,39 @@ def get_closing_campaigns():
 @authenticate
 def create_campaign(user_id):
     """Create new campaign"""
-    post_data = request.get_json()
-    field_types = {'name': str, 'description': str, 'prize_id': int, 'threshold': int,
-                   'sku_id': int, 'image_url': str, 'start_date': str, 'end_date': str}
+    response_object = {
+        'status': False,
+        'message': 'Invalid payload',
+    }
+    try:
+        post_data = request.get_json()
+        field_types = {'name': str, 'description': str, 'prize_id': int,
+                       'threshold': int, 'video_url': str, 'sku_id': int,
+                       'image_url': str, 'start_date': str, 'end_date': str}
 
-    required_fields = list(field_types.keys())
-    required_fields.remove('start_date')
-    required_fields.remove('end_date')
-    required_fields.remove('threshold')
+        required_fields = list(field_types.keys())
+        required_fields.remove('start_date')
+        required_fields.remove('end_date')
+        required_fields.remove('threshold')
 
-    post_data = field_type_validator(post_data, field_types)
-    required_validator(post_data, required_fields)
+        post_data = field_type_validator(post_data, field_types)
+        required_validator(post_data, required_fields)
 
-    # check if prize exists
-    prize = Prize.query.get(post_data.get('prize_id'))
-    if not prize:
-        response_object = {
-            'status': 'fail',
-            'message': 'Prize does not exist',
-        }
-        return jsonify(response_object), 400
+        # check if prize exists
+        prize = Prize.query.get(post_data.get('prize_id'))
+        if not prize:
+            response_object['message'] = 'Prize does not exist'
+            return jsonify(response_object), 200
 
-    # check if sku exists
-    sku = Sku.query.get(post_data.get('sku_id'))
-    if not sku:
-        response_object = {
-            'status': 'fail',
-            'message': 'Sku does not exist',
-        }
-        return jsonify(response_object), 400
+        # check if sku exists
+        sku = Sku.query.get(post_data.get('sku_id'))
+        if not sku:
+            response_object['message'] = 'SKU does not exist'
+            return jsonify(response_object), 200
 
-    campaign = Campaign.query.filter(Campaign.name == post_data.get('name'),
-                                     Campaign.user_id == int(user_id)).first()
-    if not campaign:
-        try:
+        campaign = Campaign.query.filter(Campaign.name == post_data.get('name'),
+                                         Campaign.user_id == int(user_id)).first()
+        if not campaign:
             campaign = Campaign(
                 name=post_data.get('name'),
                 description=post_data.get('description'),
@@ -189,27 +204,26 @@ def create_campaign(user_id):
             )
             campaign.insert()
 
-            response_object = {
-                'status': 'success',
-                'message': 'Campaign is created successfully',
-                'data': {
-                    'campaign': campaign.to_json()
-                }
-            }
-            return jsonify(response_object), 201
-        except Exception as e:
-            response_object = {
-                'status': 'fail',
-                'error': str(e),
-                'message': 'Some error occurred. Please try again.'
-            }
-            return jsonify(response_object), 401
+            Draw(
+                campaign_id=campaign.id,
+                video_url=post_data.get('video_url'),
+            ).insert()
 
-    else:
-        response_object = {
-            'status': 'fail',
-            'message': 'Campaign already exists.',
-        }
+            response_object['status'] = True
+            response_object['message'] = 'Campaign is created successfully'
+            response_object['data'] = {
+                'campaign': campaign.to_json()
+            }
+
+            return jsonify(response_object), 200
+
+        else:
+            response_object['message'] = 'Campaign already exists'
+            return jsonify(response_object), 200
+
+    except Exception as e:
+        response_object['error'] = str(e)
+        response_object['message'] = 'Some error occurred. Please try again.'
         return jsonify(response_object), 400
 
 
@@ -217,65 +231,80 @@ def create_campaign(user_id):
 @authenticate
 def update_campaign(user_id, campaign_id):
     """Update campaign"""
-    post_data = request.get_json()
-    field_types = {'name': str, 'description': str, 'prize_id': int,
-                   'is_active': bool, 'threshold': int, 'sku_id': int,
-                   'image_url': str, 'start_date': str, 'end_date': str}
-
-    post_data = field_type_validator(post_data, field_types)
-
-    campaign = Campaign.query.filter(Campaign.id == int(campaign_id),
-                                     Campaign.user_id == int(user_id)).first()
-
-    if not campaign:
-        response_object = {
-            'status': 'fail',
-            'message': 'Campaign does not exist',
-        }
-        return jsonify(response_object), 404
-
-    campaign.name = post_data.get('name') or campaign.name
-    campaign.description = post_data.get('description') or campaign.description
-    campaign.prize_id = post_data.get('prize_id') or campaign.prize_id
-    campaign.sku_id = post_data.get('sku_id') or campaign.sku_id
-    campaign.image = post_data.get('image_url') or campaign.image
-    campaign.threshold = post_data.get('threshold') or campaign.threshold
-    campaign.start_date = post_data.get('start_date') or campaign.start_date
-    campaign.end_date = post_data.get('end_date') or campaign.end_date
-
-    campaign.is_active = post_data.get('is_active') if post_data.get('is_active') is not None \
-        else campaign.is_active
-
-    campaign.update()
-
     response_object = {
-        'status': 'success',
-        'message': 'Campaign is updated successfully',
-        'data': {
+        'status': False,
+        'message': 'Invalid payload',
+    }
+
+    try:
+        post_data = request.get_json()
+        field_types = {'name': str, 'description': str, 'prize_id': int,
+                       'is_active': bool, 'threshold': int, 'sku_id': int,
+                       'image_url': str, 'start_date': str, 'end_date': str}
+
+        post_data = field_type_validator(post_data, field_types)
+
+        campaign = Campaign.query.filter(Campaign.id == int(campaign_id),
+                                         Campaign.user_id == int(user_id)).first()
+
+        if not campaign:
+            response_object['message'] = 'Campaign does not exist'
+            return jsonify(response_object), 200
+
+        campaign.name = post_data.get('name') or campaign.name
+        campaign.description = post_data.get(
+            'description') or campaign.description
+        campaign.prize_id = post_data.get('prize_id') or campaign.prize_id
+        campaign.sku_id = post_data.get('sku_id') or campaign.sku_id
+        campaign.image = post_data.get('image_url') or campaign.image
+        campaign.threshold = post_data.get('threshold') or campaign.threshold
+        campaign.start_date = post_data.get(
+            'start_date') or campaign.start_date
+        campaign.end_date = post_data.get('end_date') or campaign.end_date
+
+        campaign.is_active = post_data.get('is_active') if post_data.get('is_active') is not None \
+            else campaign.is_active
+
+        campaign.update()
+
+        response_object['status'] = True
+        response_object['message'] = 'Campaign is updated successfully'
+        response_object['data'] = {
             'campaign': campaign.to_json()
         }
-    }
-    return jsonify(response_object), 200
+        return jsonify(response_object), 200
+
+    except Exception as e:
+        response_object['error'] = str(e)
+        response_object['message'] = 'Some error occurred. Please try again.'
+        return jsonify(response_object), 400
 
 
 @campaign_blueprint.route('/campaign/delete/<int:campaign_id>', methods=['DELETE'])
 @authenticate
 def delete_campaign(user_id, campaign_id):
     """Delete campaign"""
-    campaign = Campaign.query.filter(Campaign.id == int(campaign_id),
-                                     Campaign.user_id == int(user_id)).first()
-
-    if not campaign:
-        response_object = {
-            'status': 'fail',
-            'message': 'Campaign does not exist',
-        }
-        return jsonify(response_object), 404
-
-    campaign.delete()
-
     response_object = {
-        'status': 'success',
-        'message': 'Campaign is deleted successfully',
+        'status': False,
+        'message': 'Invalid payload',
     }
-    return jsonify(response_object), 200
+
+    try:
+        campaign = Campaign.query.filter(Campaign.id == int(campaign_id),
+                                         Campaign.user_id == int(user_id)).first()
+
+        if not campaign:
+            response_object['message'] = 'Campaign does not exist'
+            return jsonify(response_object), 200
+
+        campaign.delete()
+
+        response_object['status'] = True
+        response_object['message'] = 'Campaign is deleted successfully'
+
+        return jsonify(response_object), 200
+
+    except Exception as e:
+        response_object['error'] = str(e)
+        response_object['message'] = 'Some error occurred. Please try again.'
+        return jsonify(response_object), 400
