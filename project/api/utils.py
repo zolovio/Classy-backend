@@ -1,8 +1,14 @@
 import os
+import logging
+import random
+from datetime import datetime, timedelta
 import boto3
 from werkzeug.utils import secure_filename
 
 from project.exceptions import APIError
+from project.models import Sku, User, Coupon, Campaign, Draw
+
+logger = logging.getLogger(__name__)
 
 # ACCESS_KEY_ID=os.getenv('aws_access_key_id')
 # ACCESS_SECRET_KEY=os.getenv('aws_secret_access_key')
@@ -25,7 +31,7 @@ from project.exceptions import APIError
 
 # def upload_file(filename, filetype, bucket):
 #     # upload file to s3
-#     s3.Bucket(bucket).upload_file( 
+#     s3.Bucket(bucket).upload_file(
 #         Filename=filename,
 #         Key=filename,
 #         ExtraArgs={
@@ -43,7 +49,8 @@ def secure_file(user_id, file, date) -> dict:
     timestamp = str(date).split('.')[0].replace('-', '').replace(':', '')
 
     filename = str(file.filename).split('.')
-    filename = ' '.join(filename[:-1]) + ' ' + str(user_id) + ' ' + str(timestamp) + '.' + filename[-1]
+    filename = ' '.join(filename[:-1]) + ' ' + str(user_id) + \
+        ' ' + str(timestamp) + '.' + filename[-1]
     filename = secure_filename(filename)
 
     filetype = file.content_type
@@ -58,7 +65,7 @@ def secure_file(user_id, file, date) -> dict:
     filesize = os.stat(filename).st_size
 
     # # max allowed file size is 5 MB
-    # if filesize >= (5 * 1024 * 1024): 
+    # if filesize >= (5 * 1024 * 1024):
     #    raise APIError("Please upload file of size less than 5 MB!")
 
     return {
@@ -95,3 +102,60 @@ def secure_file(user_id, file, date) -> dict:
 #             })
 
 #     return data
+
+
+def refresh_campaigns():
+    # get all active campaigns
+    campaigns = Campaign.query.filter(Campaign.start_date != None).all()
+
+    for campaign in campaigns:
+        # get sku for campaign
+        sku = Sku.query.get(campaign.sku_id)
+        # get draw for campaign
+        draw = Draw.query.filter_by(campaign_id=campaign.id).first()
+
+        if sku.quantity != sku.number_delivered and not campaign.is_active:
+            # set campaign as inactive
+            campaign.end_date = None
+            campaign.is_active = True
+            campaign.update()
+
+            # set draw as inactive
+            draw.start_date = None
+            draw.end_date = None
+            draw.update()
+
+        elif sku.quantity == sku.number_delivered and campaign.is_active:
+            # set campaign as inactive
+            campaign.end_date = datetime.now()
+            campaign.is_active = False
+            campaign.update()
+
+            # set draw as active
+            draw.start_date = datetime.now()
+            draw.end_date = draw.start_date + timedelta(days=7)
+            draw.update()
+
+
+def lucky_draw():
+    draws = Draw.query.filter(
+        Draw.end_date >= datetime.now(), Draw.winner_id == None).all()
+
+    logger.info("Processing {} draws".format(len(draws)))
+
+    for draw in draws:
+        campaign = Campaign.query.get(draw.campaign_id)
+
+        # get all users who have entered the campaign
+        users = User.query.join(
+            Coupon, User.id == Coupon.user_id).filter(
+            Coupon.campaign_id == campaign.id).all()
+
+        # get random user
+        winner = random.choice(users)
+
+        # set winner
+        draw.winner_id = winner.id
+        draw.update()
+
+        return winner
