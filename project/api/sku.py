@@ -15,7 +15,7 @@ sku_blueprint = Blueprint('sku', __name__, template_folder='templates')
 @sku_blueprint.route('/sku/ping', methods=['GET'])
 def ping_pong():
     return jsonify({
-        'status': 'success',
+        'status': True,
         'message': 'pong V0.1!'
     })
 
@@ -24,7 +24,7 @@ def ping_pong():
 def get_all_sku():
     """Get all sku"""
     response_object = {
-        'status': 'success',
+        'status': True,
         'message': 'All sku are returned successfully',
         'data': {
             'sku': [sku.to_json() for sku in Sku.query.all()]
@@ -37,17 +37,17 @@ def get_all_sku():
 def get_single_sku(sku_id):
     """Get single sku details"""
     response_object = {
-        'status': 'fail',
+        'status': True,
         'message': 'Sku does not exist',
     }
 
     sku = Sku.query.filter_by(id=int(sku_id)).first()
 
     if not sku:
-        return jsonify(response_object), 404
+        return jsonify(response_object), 200
 
     response_object = {
-        'status': 'success',
+        'status': True,
         'message': 'Sku exists and is returned',
         'data': {
             'sku': sku.to_json()
@@ -101,10 +101,10 @@ def add_sku(user_id):
 
     if (sku):
         response_object = {
-            'status': 'fail',
+            'status': False,
             'message': 'Sku already exists.',
         }
-        return jsonify(response_object), 400
+        return jsonify(response_object), 200
 
     try:
         sku = Sku(
@@ -145,18 +145,18 @@ def add_sku(user_id):
         sku.update()
 
         response_object = {
-            'status': 'success',
+            'status': True,
             'message': 'Sku {} was added!'.format(post_data.get('name')),
             'data': {
                 'sku': sku.to_json(),
             }
         }
 
-        return jsonify(response_object), 201
+        return jsonify(response_object), 200
 
     except Exception as e:
         response_object = {
-            'status': 'fail',
+            'status': False,
             'message': 'Sku {} was not added!'.format(post_data.get('name')),
             'error': str(e),
         }
@@ -171,17 +171,17 @@ def update_sku(user_id, sku_id):
 
     if not sku:
         response_object = {
-            'status': 'fail',
+            'status': False,
             'message': 'Sku does not exist',
         }
-        return jsonify(response_object), 404
+        return jsonify(response_object), 200
 
     if sku.user_id != user_id:
         response_object = {
-            'status': 'fail',
+            'status': False,
             'message': 'You are not authorized to update this sku',
         }
-        return jsonify(response_object), 401
+        return jsonify(response_object), 200
 
     post_data = request.get_json()
 
@@ -232,7 +232,7 @@ def update_sku(user_id, sku_id):
         sku.update()
 
         response_object = {
-            'status': 'success',
+            'status': True,
             'message': 'Sku {} was updated!'.format(post_data.get('name')),
             'data': {
                 'sku': sku.to_json(),
@@ -243,7 +243,7 @@ def update_sku(user_id, sku_id):
 
     except Exception as e:
         response_object = {
-            'status': 'fail',
+            'status': False,
             'message': 'Sku {} was not updated!'.format(post_data.get('name')),
             'error': str(e),
         }
@@ -258,23 +258,23 @@ def delete_sku(user_id, sku_id):
 
     if not sku:
         response_object = {
-            'status': 'fail',
+            'status': False,
             'message': 'Sku does not exist',
         }
-        return jsonify(response_object), 404
+        return jsonify(response_object), 200
 
     if sku.user_id != user_id:
         response_object = {
-            'status': 'fail',
+            'status': False,
             'message': 'You are not authorized to delete this sku',
         }
-        return jsonify(response_object), 401
+        return jsonify(response_object), 200
 
     try:
         sku.delete()
 
         response_object = {
-            'status': 'success',
+            'status': True,
             'message': 'Sku {} was deleted!'.format(sku.name),
         }
 
@@ -282,7 +282,7 @@ def delete_sku(user_id, sku_id):
 
     except Exception as e:
         response_object = {
-            'status': 'fail',
+            'status': False,
             'message': 'Sku {} was not deleted!'.format(sku.name),
             'error': str(e),
         }

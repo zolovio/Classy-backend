@@ -23,15 +23,15 @@ def get_access_token(user_id):
     user = User.query.filter_by(id=int(user_id)).first()
     if not user:
         response_object = {
-            'status': 'fail',
+            'status': False,
             'message': 'User does not exist',
         }
-        return jsonify(response_object), 404
+        return jsonify(response_object), 200
 
     auth_token = user.encode_auth_token(user.id)
     if auth_token:
         response_object = {
-            "status": "success",
+            "status": True,
             "message": "Access token generated successfully.",
             "auth_token": auth_token.decode('utf-8'),
             "id": user.id
@@ -45,12 +45,12 @@ def login():
     post_data = request.get_json()
 
     response_object = {
-        'status': 'fail',
+        'status': False,
         'message': 'Invalid payload.'
     }
 
     if not post_data:
-        return jsonify(response_object), 400
+        return jsonify(response_object), 200
 
     field_types = {"username": str, "password": str}
     required_fields = ["username", "password"]
@@ -70,12 +70,12 @@ def login():
 
         if not user:
             response_object['message'] = 'Username or password is incorrect.'
-            return jsonify(response_object), 404
+            return jsonify(response_object), 200
 
         if bcrypt.check_password_hash(user.password, password.encode('utf-8')):
             if user.account_suspension:
                 response_object['message'] = 'Account is suspended by admin.'
-                return jsonify(response_object), 400
+                return jsonify(response_object), 200
 
             user.active = True
             user.update()
@@ -83,7 +83,7 @@ def login():
             auth_token = user.encode_auth_token(user.id)
             if auth_token:
                 response_object = {
-                    "status": "success",
+                    "status": True,
                     "message": "User logged in successfully.",
                     "auth_token": auth_token.decode('utf-8'),
                     "id": user.id
@@ -92,12 +92,12 @@ def login():
                 return jsonify(response_object), 200
         else:
             response_object['message'] = 'Username or password is incorrect.'
-            return jsonify(response_object), 401
+            return jsonify(response_object), True
 
     except Exception as e:
         logging.error(e)
         response_object['message'] = 'Try again: ' + str(e)
-        return jsonify(response_object), 500
+        return jsonify(response_object), 200
 
 
 @auth_blueprint.route('/users/auth/logout', methods=['GET'])
@@ -118,17 +118,17 @@ def logout(user_id):
         user.update()
 
         response_object = {
-            'status': 'success',
+            'status': True,
             'message': 'User logged out successfully.'
         }
         return jsonify(response_object), 200
 
     except Exception as e:
         response_object = {
-            'status': 'fail',
+            'status': False,
             'message': str(e)
         }
-        return jsonify(response_object), 200
+        return jsonify(response_object), 400
 
 
 @auth_blueprint.route('/users/auth/register', methods=['POST'])
@@ -136,12 +136,12 @@ def register():
     post_data = request.get_json()
 
     response_object = {
-        'status': 'fail',
+        'status': False,
         'message': 'Invalid payload.'
     }
 
     if not post_data:
-        return jsonify(response_object), 400
+        return jsonify(response_object), 200
 
     field_types = {
         "firstname": str, "lastname": str, "email": str,
@@ -169,7 +169,7 @@ def register():
 
             if user:
                 response_object['message'] = 'Mobile number already exists.'
-                return jsonify(response_object), 400
+                return jsonify(response_object), 200
 
             new_user = User(
                 firstname=post_data.get('firstname'),
@@ -194,22 +194,22 @@ def register():
 
             auth_token = new_user.encode_auth_token(new_user.id)
             response_object = {
-                'status': 'success',
+                'status': False,
                 'message': 'User registered successfully.',
                 'auth_token': auth_token.decode('utf-8'),
                 'id': new_user.id
             }
 
-            return jsonify(response_object), 201
+            return jsonify(response_object), 200
 
         else:
             response_object['message'] = 'Email already exists.'
-            return jsonify(response_object), 400
+            return jsonify(response_object), 200
 
     except Exception as e:
         logging.error(e)
         response_object['message'] = 'Try again: ' + str(e)
-        return jsonify(response_object), 500
+        return jsonify(response_object), 400
 
 
 # GOOGLE login
@@ -225,16 +225,16 @@ def google_login_token():
     """
     post_data = request.get_json()
     response_object = {
-        'status': 'fail',
+        'status': False,
         'message': 'Invalid payload.'
     }
     if not post_data:
-        return jsonify(response_object), 401
+        return jsonify(response_object), 200
 
     access_token = post_data.get('access_token')
 
     if not access_token:
-        return jsonify(response_object), 401
+        return jsonify(response_object), 200
 
     try:
         # Specify the CLIENT_ID of the app that accesses the backend:
@@ -277,17 +277,17 @@ def google_login_token():
 
             auth_token = new_user.encode_auth_token(new_user.id)
             response_object = {
-                'status': 'inactive',
+                'status': True,
                 'message': 'User registered successfully.',
                 'auth_token': auth_token.decode('utf-8'),
                 'id': new_user.id
             }
-            return jsonify(response_object), 201
+            return jsonify(response_object), 200
 
     except ValueError as ex:
         logging.error(ex)
         response_object['message'] = 'There is an error processing this token'
-        return jsonify(response_object), 401
+        return jsonify(response_object), 400
 
 
 def random_string(stringLength=10):
@@ -311,12 +311,12 @@ def login_social_media(user_profile):
             auth_token = user.encode_auth_token(user.id)
             if auth_token:
                 response_object = {
-                    'status': 'active',
+                    'status': True,
                     'message': 'User logged in successfully.',
                     'auth_token': auth_token.decode('utf-8'),
                     'id': user.id
                 }
-                return jsonify(response_object), 201
+                return jsonify(response_object), 200
 
         else:
             return None

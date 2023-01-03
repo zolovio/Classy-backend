@@ -23,7 +23,7 @@ user_blueprint = Blueprint('user', __name__, template_folder='templates')
 @user_blueprint.route('/health', methods=['GET'])
 def health():
     return jsonify({
-        'status': 'success',
+        'status': True,
         'message': 'pong V0.1!'
     })
 
@@ -31,7 +31,7 @@ def health():
 @user_blueprint.route('/users/ping', methods=['GET'])
 def ping_pong():
     return jsonify({
-        'status': 'success',
+        'status': True,
         'message': 'pong V0.1!'
     })
 
@@ -39,10 +39,12 @@ def ping_pong():
 @user_blueprint.route('/users/list', methods=['GET'])
 def get_all_users():
     """Get all users"""
+    users = User.query.all()
     response_object = {
-        'status': 'success',
+        'status': True,
+        'message': '{} users found'.format(len(users)),
         'data': {
-            'users': [user.to_json() for user in User.query.all()]
+            'users': [user.to_json() for user in users]
         }
     }
     return jsonify(response_object), 200
@@ -52,18 +54,18 @@ def get_all_users():
 def get_single_user(user_id):
     """Get single user details"""
     response_object = {
-        'status': 'fail',
+        'status': False,
         'message': 'User does not exist',
     }
 
     user = User.query.filter_by(id=int(user_id)).first()
 
     if not user:
-        return jsonify(response_object), 404
+        return jsonify(response_object), 200
 
     location = Location.query.filter_by(user_id=int(user_id)).first()
 
-    response_object['status'] = 'success'
+    response_object['status'] = True
     response_object['message'] = 'User details retrieved successfully'
 
     response_object['data'] = user.to_json()
@@ -78,18 +80,18 @@ def get_single_user(user_id):
 def get_user_by_auth_token(user_id):
     """Get single user details"""
     response_object = {
-        'status': 'fail',
+        'status': False,
         'message': 'User does not exist',
     }
 
     user = User.query.filter_by(id=int(user_id)).first()
 
     if not user:
-        return jsonify(response_object), 404
+        return jsonify(response_object), 200
 
     location = Location.query.filter_by(user_id=int(user_id)).first()
 
-    response_object['status'] = 'success'
+    response_object['status'] = True
     response_object['message'] = 'User details retrieved successfully'
 
     response_object['data'] = user.to_json()
@@ -127,8 +129,8 @@ def upload_picture(user_id):
             if not user:
                 return jsonify({
                     'message': 'User does not exist',
-                    'status': 'fail'
-                }), 400
+                    'status': False
+                }), 200
 
             # user.profile_picture = object_url
             # user.update()
@@ -137,15 +139,15 @@ def upload_picture(user_id):
 
             return jsonify({
                 "message": message,
-                "status": "success",
+                "status": True,
                 "data": user.to_json()
             }), 200
 
         else:
             return jsonify({
                 "message": "Invalid payload: file not found!",
-                "status": "failed"
-            }), 400
+                "status": False
+            }), 200
 
     except Exception as e:
         try:
@@ -153,7 +155,7 @@ def upload_picture(user_id):
         except:
             pass
         finally:
-            return jsonify({"message": str(e), "status": "fail"}), 400
+            return jsonify({"message": str(e), "status": False}), 400
 
 
 @user_blueprint.route('/users/update_info', methods=['PATCH'])
@@ -163,12 +165,12 @@ def update_user_info(resp):
     post_data = request.get_json()
 
     response_object = {
-        'status': 'fail',
+        'status': False,
         'message': 'Invalid payload.',
     }
 
     if not post_data:
-        return jsonify(response_object), 400
+        return jsonify(response_object), 200
 
     try:
         user = User.query.get(resp)
@@ -198,7 +200,7 @@ def update_user_info(resp):
 
         user.update()
 
-        response_object['status'] = 'success'
+        response_object['status'] = True
         response_object['message'] = 'User info updated successfully.'
         response_object['user'] = user.to_json()
 
@@ -217,7 +219,7 @@ def update_user_location(user_id):
     post_data = request.get_json()
 
     response_object = {
-        'status': 'fail',
+        'status': False,
         'message': 'Invalid payload.',
     }
 
@@ -248,7 +250,7 @@ def update_user_location(user_id):
             )
             location.insert()
 
-            response_object['status'] = 'success'
+            response_object['status'] = True
             response_object['message'] = 'User location added successfully.'
             response_object['location'] = location.to_json()
 
@@ -262,7 +264,7 @@ def update_user_location(user_id):
 
         location.update()
 
-        response_object['status'] = 'success'
+        response_object['status'] = True
         response_object['message'] = 'User location updated successfully.'
         response_object['location'] = location.to_json()
 

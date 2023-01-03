@@ -333,8 +333,9 @@ class Coupon(db.Model):
         - sku_stock_id: int
 
         - code: str
-        - datetime: datetime
-        - is_active: bool
+        - create_date: datetime
+        - amount_paid: float
+        - is_redeemed: bool
 
     """
     __tablename__ = "coupon"
@@ -349,24 +350,24 @@ class Coupon(db.Model):
         "sku_stock.id"), nullable=False)
 
     code = db.Column(db.String(128), unique=True, nullable=False)
-    datetime = db.Column(db.DateTime, nullable=False)
+    create_date = db.Column(db.DateTime, nullable=False)
     amount_paid = db.Column(db.Float, nullable=False)
-    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    is_redeemed = db.Column(db.Boolean, nullable=False, default=False)
 
     def __repr__(self):
         return f"Coupon {self.id} {self.code}"
 
     def __init__(self, user_id: int, campaign_id: int, sku_images_id: int,
-                 sku_stock_id: int, datetime: str, amount_paid: float):
+                 sku_stock_id: int, create_date: str, amount_paid: float):
 
         self.user_id = user_id
         self.campaign_id = campaign_id
         self.sku_images_id = sku_images_id
         self.sku_stock_id = sku_stock_id
-        self.datetime = datetime
+        self.create_date = create_date
         self.amount_paid = amount_paid
         self.code = Coupon.generate_code(
-            user_id, campaign_id, sku_stock_id, sku_images_id, datetime)
+            user_id, campaign_id, sku_stock_id, sku_images_id, create_date)
 
     def insert(self):
         db.session.add(self)
@@ -392,12 +393,12 @@ class Coupon(db.Model):
             "sku_image": Sku_Images.query.get(self.sku_images_id).to_json(),
             "sku_stock": Sku_Stock.query.get(self.sku_stock_id).to_json(),
             "coupon_code": self.code,
-            "is_active": self.is_active,
-            "purchased on": self.datetime.strftime("%d %b, %Y %I:%M%p")
+            "is_redeemed": self.is_redeemed,
+            "purchased on": self.create_date.strftime("%d %b, %Y %I:%M%p")
         }
 
     @staticmethod
-    def generate_code(user_id: int, campaign_id: int, sku_stock_id: int, sku_images_id: int, datetime: datetime):
+    def generate_code(user_id: int, campaign_id: int, sku_stock_id: int, sku_images_id: int, create_date: str):
         upper_case_letters = [chr(i) for i in range(65, 91)]
 
         letters = upper_case_letters[campaign_id % 26] + \
@@ -407,4 +408,4 @@ class Coupon(db.Model):
         digits = str(user_id) + str(campaign_id % 10) + \
             str(sku_images_id % 10) + str(sku_stock_id % 10)
 
-        return f"{letters}-{digits}-{datetime.strftime('%m%d')}-{datetime.strftime('%M%S')}"
+        return f"{letters}-{digits}-{create_date.strftime('%m%d')}-{create_date.strftime('%M%S')}"
