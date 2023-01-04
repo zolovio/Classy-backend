@@ -6,4 +6,5 @@ from .auth import auth_blueprint
 from .prize import prize_blueprint
 from .order import order_blueprint
 from .banner import banner_blueprint
+from .upload import upload_blueprint
 from .utils import refresh_campaigns, lucky_draw
