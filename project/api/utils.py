@@ -2,47 +2,45 @@ import os
 import logging
 import random
 from datetime import datetime, timedelta
-import boto3
 from werkzeug.utils import secure_filename
+from imagekitio.client import ImageKit
+from imagekitio.models.UploadFileRequestOptions import UploadFileRequestOptions
 
 from project.exceptions import APIError
 from project.models import Sku, User, Coupon, Campaign, Draw
 
 logger = logging.getLogger(__name__)
 
-# ACCESS_KEY_ID=os.getenv('aws_access_key_id')
-# ACCESS_SECRET_KEY=os.getenv('aws_secret_access_key')
+ACCESS_PRIVATE_KEY = os.getenv('IMAGEKIT_PRIVATE_KEY')
+ACCESS_PUBLIC_KEY = os.getenv('IMAGEKIT_PUBLIC_KEY')
+ACCESS_URL_ENDPOINT = os.getenv('IMAGEKIT_URL_ENDPOINT')
 
-# REGION_NAME = "eu-west-1"
+imagekit = ImageKit(
+    private_key=ACCESS_PRIVATE_KEY,
+    public_key=ACCESS_PUBLIC_KEY,
+    url_endpoint=ACCESS_URL_ENDPOINT
+)
 
-# s3 = boto3.resource(
-#     service_name='s3',
-#     'region_name=REGION_NAME,
-#     aws_access_key_id=ACCESS_KEY_ID,
-#     aws_secret_access_key=ACCESS_SECRET_KEY
-# )
 
-# client = boto3.client(
-#     service_name='textract',
-#     'region_name=REGION_NAME,
-#     aws_access_key_id=ACCESS_KEY_ID,
-#     aws_secret_access_key = ACCESS_SECRET_KEY
-# )
+def upload_file(file, file_name, endpoint):
 
-# def upload_file(filename, filetype, bucket):
-#     # upload file to s3
-#     s3.Bucket(bucket).upload_file(
-#         Filename=filename,
-#         Key=filename,
-#         ExtraArgs={
-#             'ACL':'public-read',        # *(if not mentioned, file will not be publically accessible)
-#             'ContentType': filetype     # *(if not mentioned, file will be download-able only)
-#         }
-#     )
+    response = imagekit.upload_file(
+        file=file,
+        file_name=file_name,
+        options=UploadFileRequestOptions(
+            is_private_file=False,
+            folder=endpoint,
+            extensions=[
+                {"name": "google-auto-tagging", "minConfidence": 80, "maxTags": 10},
+            ],
+            overwrite_file=True,
+            overwrite_ai_tags=False,
+            overwrite_tags=False,
+            overwrite_custom_metadata=True
+        )
+    )
 
-#     object_url = "https://{}.s3.{}.amazonaws.com/{}".format(bucket, REGION_NAME, filename)
-
-#     return object_url
+    return response
 
 
 def secure_file(user_id, file, date) -> dict:
@@ -64,44 +62,11 @@ def secure_file(user_id, file, date) -> dict:
     file.save(filename)
     filesize = os.stat(filename).st_size
 
-    # # max allowed file size is 5 MB
-    # if filesize >= (5 * 1024 * 1024):
-    #    raise APIError("Please upload file of size less than 5 MB!")
-
     return {
         "filename": filename,
         "filetype": filetype,
         "filesize": filesize
     }
-
-
-# def extract_data(document, bucket):
-#     response = client.analyze_expense(
-#         Document={
-#             'S3Object': {
-#                 'Bucket': bucket,
-#                 'Name': document
-#             }
-#         }
-#     )
-
-#     return response
-
-
-# def get_s3_buckets():
-#     data = {}
-
-#     for bucket in s3.buckets.all():
-#         data[bucket.name] = []
-
-#         for obj in s3.Bucket(bucket.name).objects.all():
-#             data[bucket.name].append({
-#                 "filename": obj.key,
-#                 "type": obj.key.split('.')[-1],
-#                 "object_url": "https://{}.s3.{}.amazonaws.com/{}".format(bucket.name, REGION_NAME, obj.key)
-#             })
-
-#     return data
 
 
 def refresh_campaigns():
