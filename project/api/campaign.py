@@ -22,7 +22,7 @@ def ping_pong():
 @campaign_blueprint.route('/campaign/list', methods=['GET'])
 def get_all_campaign():
     """Get all active campaigns"""
-    campaigns = Campaign.query.all()
+    campaigns = Campaign.query.filter_by(is_active=True).all()
 
     response_object = {
         'status': True,
@@ -37,13 +37,22 @@ def get_all_campaign():
 @campaign_blueprint.route('/campaign/carousel', methods=['GET'])
 def get_carousel_campaign():
     """Get all active campaigns"""
-    campaigns = Campaign.query.all()
+    campaigns = Campaign.query.filter_by(is_active=True).all()
+    active_campaigns = []
+    for campaign in campaigns:
+        sku = Sku.query.get(campaign.sku_id)
+        if not sku:
+            continue
+
+        if (((sku.quantity - sku.number_sold) > 0) and
+                ((int((sku.number_sold / sku.quantity) * 100)) < campaign.threshold)):
+            active_campaigns.append(campaign.to_json())
 
     response_object = {
         'status': True,
-        'message': '{} active campaign(s) found'.format(len(campaigns)),
+        'message': '{} active campaign(s) found within respective thresholds'.format(len(active_campaigns)),
         'data': {
-            'campaign': [campaign.to_json() for campaign in campaigns if campaign.is_active]
+            'campaign': active_campaigns
         }
     }
     return jsonify(response_object), 200
