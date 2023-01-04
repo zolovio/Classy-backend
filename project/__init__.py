@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 from flask import Flask
 from flask_cors import CORS
+from flask_crontab import Crontab
 from flask_migrate import Migrate
 from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
@@ -18,6 +19,7 @@ db = SQLAlchemy()
 toolbar = DebugToolbarExtension()
 migrate = Migrate()
 bcrypt = Bcrypt()
+crontab = Crontab()
 
 
 def create_app(script_info=None):
@@ -37,6 +39,7 @@ def create_app(script_info=None):
     toolbar.init_app(app)
     migrate.init_app(app, db)
     bcrypt.init_app(app)
+    crontab.init_app(app)
 
     @app.after_request
     def after_request(response):
@@ -63,6 +66,8 @@ def create_app(script_info=None):
     app.register_blueprint(shopping_blueprint)
     from project.api import order_blueprint
     app.register_blueprint(order_blueprint)
+    from project.api import banner_blueprint
+    app.register_blueprint(banner_blueprint)
 
     @app.errorhandler(Exception)
     def manage_exception(ex):
@@ -76,3 +81,11 @@ def create_app(script_info=None):
     app.shell_context_processor({'app': app, 'db': db})
 
     return app
+
+# run the cron job every second
+# @crontab.job(minute='*')
+# def lucky_draw_cron():
+#     from project.api import lucky_draw, refresh_campaigns
+
+#     refresh_campaigns()
+#     lucky_draw()
