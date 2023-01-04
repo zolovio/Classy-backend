@@ -1,23 +1,21 @@
 import os
+import logging
 from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 from flask import current_app
 
 from project.models.user_model import User, Location
-from project.api.utils import secure_file  # , upload_file
+from project.api.utils import secure_file, upload_file
 from project.api.authentications import authenticate
 
 from project import db, bcrypt
 from project.exceptions import APIError
 from project.api.validators import email_validator, field_type_validator, required_validator
 
-# ACCESS_KEY_ID = os.getenv('aws_access_key_id')
-# ACCESS_SECRET_KEY = os.getenv('aws_secret_access_key')
-
-# BUCKET_NAME = "alpha-ai-profile-picture"
 
 user_blueprint = Blueprint('user', __name__, template_folder='templates')
+logger = logging.getLogger(__name__)
 
 
 @user_blueprint.route('/health', methods=['GET'])
@@ -114,12 +112,14 @@ def upload_picture(user_id):
             secured_file = secure_file(user_id, file, curr_date)
             filename = secured_file["filename"]
 
-            # upload file to s3 bucket
-            # object_url = upload_file(
-            #     secured_file["filename"],
-            #     secured_file["filetype"],
-            #     BUCKET_NAME
-            # )
+            response = upload_file(
+                file=file,
+                file_name=filename,
+                endpoint='profile'
+            )
+
+            object_url = response.url
+            logger.info("File uploaded successfully: {}".format(object_url))
 
             # delete file locally
             os.remove(filename)
@@ -132,8 +132,8 @@ def upload_picture(user_id):
                     'status': False
                 }), 200
 
-            # user.profile_picture = object_url
-            # user.update()
+            user.profile_picture = object_url
+            user.update()
 
             message = "File uploaded successfully!"
 
@@ -151,6 +151,7 @@ def upload_picture(user_id):
 
     except Exception as e:
         try:
+            logger.error("Error uploading file: {}".format(e))
             os.remove(filename)
         except:
             pass
