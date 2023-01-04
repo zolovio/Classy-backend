@@ -1,23 +1,28 @@
 import os
+import logging
 from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 from flask import current_app
 
-from project.models.user_model import User, Location
-from project.api.utils import secure_file  # , upload_file
+from project.models import (
+    User,
+    Location,
+    Campaign,
+    Sku,
+    Banners
+)
+
+from project.api.utils import secure_file, upload_file
 from project.api.authentications import authenticate
 
 from project import db, bcrypt
 from project.exceptions import APIError
 from project.api.validators import email_validator, field_type_validator, required_validator
 
-# ACCESS_KEY_ID = os.getenv('aws_access_key_id')
-# ACCESS_SECRET_KEY = os.getenv('aws_secret_access_key')
-
-# BUCKET_NAME = "alpha-ai-profile-picture"
 
 user_blueprint = Blueprint('user', __name__, template_folder='templates')
+logger = logging.getLogger(__name__)
 
 
 @user_blueprint.route('/health', methods=['GET'])
@@ -114,12 +119,14 @@ def upload_picture(user_id):
             secured_file = secure_file(user_id, file, curr_date)
             filename = secured_file["filename"]
 
-            # upload file to s3 bucket
-            # object_url = upload_file(
-            #     secured_file["filename"],
-            #     secured_file["filetype"],
-            #     BUCKET_NAME
-            # )
+            response = upload_file(
+                file=file,
+                file_name=filename,
+                endpoint='profile'
+            )
+
+            object_url = response.url
+            logger.info("File uploaded successfully: {}".format(object_url))
 
             # delete file locally
             os.remove(filename)
@@ -132,8 +139,8 @@ def upload_picture(user_id):
                     'status': False
                 }), 200
 
-            # user.profile_picture = object_url
-            # user.update()
+            user.profile_picture = object_url
+            user.update()
 
             message = "File uploaded successfully!"
 
@@ -151,6 +158,7 @@ def upload_picture(user_id):
 
     except Exception as e:
         try:
+            logger.error("Error uploading file: {}".format(e))
             os.remove(filename)
         except:
             pass
@@ -268,6 +276,60 @@ def update_user_location(user_id):
         response_object['message'] = 'User location updated successfully.'
         response_object['location'] = location.to_json()
 
+        return jsonify(response_object), 200
+
+    except Exception as e:
+        response_object['message'] = str(e)
+        return jsonify(response_object), 400
+
+
+@user_blueprint.route('/users/home/mobile', methods=['GET'])
+@authenticate
+def get_user_mobile_home(user_id):
+    """
+    Get user home page which includes: 
+        - User (name, profile_picture)
+        - Campaign (carousal, list, closing)
+        - Banners
+    """
+    response_object = {
+        'status': False,
+        'data': {},
+    }
+
+    try:
+        user = User.query.get(user_id)
+        response_object['data']['user'] = user.to_json()
+
+        # get closing and carousal campaigns
+        campaigns = Campaign.query.filter_by(is_active=True).all()
+
+        active, closing, carousal = [], [], []
+        for campaign in campaigns:
+            sku = Sku.query.get(campaign.sku_id)
+            if not sku:
+                continue
+
+            active.append(campaign.to_json())
+
+            if (((sku.quantity - sku.number_sold) > 0) and
+                    ((int((sku.number_sold / sku.quantity) * 100)) > campaign.threshold)):
+                closing.append(campaign.to_json())
+
+            else:
+                carousal.append(campaign.to_json())
+
+        response_object['data']['carousal'] = carousal
+        response_object['data']['closing'] = closing
+        response_object['data']['active'] = active
+
+        # get banners
+        banners = Banners.query.filter_by(is_active=True).all()
+        response_object['data']['banners'] = [banner.to_json()
+                                              for banner in banners]
+
+        response_object['status'] = True
+        response_object['message'] = 'User home page data fetched successfully.'
         return jsonify(response_object), 200
 
     except Exception as e:
