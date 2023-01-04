@@ -1,6 +1,6 @@
 import os
+import base64
 import logging
-from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 from flask import current_app
@@ -113,17 +113,19 @@ def upload_picture(user_id):
     try:
         file = request.files['file']
         if file:
-            curr_date = datetime.now()
-
             # create secure filename and save locally
-            secured_file = secure_file(user_id, file, curr_date)
+            secured_file = secure_file(file)
             filename = secured_file["filename"]
 
-            response = upload_file(
-                file=file,
-                file_name=filename,
-                endpoint='profile'
-            )
+            # get current path
+            current_path = os.path.dirname(os.path.abspath(__name__))
+            file_path = os.path.join(current_path, filename)
+            logger.info("File path: {}".format(file_path))
+
+            with open(file_path, mode="rb") as img:
+                imgstr = base64.b64encode(img.read())
+
+            response = upload_file(imgstr, filename)
 
             object_url = response.url
             logger.info("File uploaded successfully: {}".format(object_url))
