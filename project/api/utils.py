@@ -32,7 +32,7 @@ def upload_file(file, file_name):
 
 
 def secure_file(file) -> dict:
-    filename = secure_filename(filename)
+    filename = secure_filename(file.filename)
     filetype = file.content_type
 
     # verify file type
