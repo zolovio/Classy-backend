@@ -22,35 +22,17 @@ imagekit = ImageKit(
 )
 
 
-def upload_file(file, file_name, endpoint):
-
+def upload_file(file, file_name):
     response = imagekit.upload_file(
         file=file,
-        file_name=file_name,
-        options=UploadFileRequestOptions(
-            is_private_file=False,
-            folder=endpoint,
-            extensions=[
-                {"name": "google-auto-tagging", "minConfidence": 80, "maxTags": 10},
-            ],
-            overwrite_file=True,
-            overwrite_ai_tags=False,
-            overwrite_tags=False,
-            overwrite_custom_metadata=True
-        )
+        file_name=file_name
     )
 
     return response
 
 
-def secure_file(user_id, file, date) -> dict:
-    timestamp = str(date).split('.')[0].replace('-', '').replace(':', '')
-
-    filename = str(file.filename).split('.')
-    filename = ' '.join(filename[:-1]) + ' ' + str(user_id) + \
-        ' ' + str(timestamp) + '.' + filename[-1]
-    filename = secure_filename(filename)
-
+def secure_file(file) -> dict:
+    filename = secure_filename(file.filename)
     filetype = file.content_type
 
     # verify file type

@@ -61,13 +61,17 @@ def register_banner(user_id):
 
     try:
         post_data = request.get_json()
-        field_types = {'image_url': str, 'is_active': bool}
-        required_fields = ['image_url']
+        field_types = {'image_url': str, 'title': str,
+                       'subtitle': str, 'is_active': bool}
+        required_fields = list(field_types.keys())
+        required_fields.remove('is_active')
 
         post_data = field_type_validator(post_data, field_types)
         required_validator(post_data, required_fields)
 
         image_url = post_data.get('image_url')
+        title = post_data.get('title')
+        subtitle = post_data.get('subtitle')
 
         banner = Banners.query.filter(
             Banners.user_id == int(user_id),
@@ -79,7 +83,9 @@ def register_banner(user_id):
 
         if not banner:
             banner = Banners(
-                image=post_data.get('image_url'),
+                image=image_url,
+                title=title,
+                subtitle=subtitle,
                 is_active=is_active,
                 user_id=user_id
             )
@@ -96,6 +102,58 @@ def register_banner(user_id):
         else:
             response_object['message'] = 'Banner already exists'
             return jsonify(response_object), 200
+
+    except Exception as e:
+        response_object['error'] = str(e)
+        response_object['message'] = 'Some error occurred. Please try again.'
+        return jsonify(response_object), 400
+
+
+@banner_blueprint.route('/banner/update/<int:banner_id>', methods=['PATCH'])
+@authenticate
+def update_banner(user_id, banner_id):
+    """Update user banner"""
+    response_object = {
+        'status': False,
+        'message': 'Invalid payload',
+    }
+
+    try:
+        post_data = request.get_json()
+        field_types = {'image_url': str, 'title': str,
+                       'subtitle': str, 'is_active': bool}
+
+        post_data = field_type_validator(post_data, field_types)
+
+        image_url = post_data.get('image_url')
+        title = post_data.get('title')
+        subtitle = post_data.get('subtitle')
+        is_active = post_data.get('is_active') if post_data.get(
+            'is_active') is not None else True
+
+        banner = Banners.query.filter(
+            Banners.id == int(banner_id),
+            Banners.user_id == int(user_id)
+        ).first()
+
+        if not banner:
+            response_object['message'] = 'Banner does not exist'
+            return jsonify(response_object), 200
+
+        banner.image = image_url if image_url else banner.image
+        banner.title = title if title else banner.title
+        banner.subtitle = subtitle if subtitle else banner.subtitle
+        banner.is_active = is_active if is_active is not None else banner.is_active
+
+        banner.update()
+
+        response_object['status'] = True
+        response_object['message'] = 'Banner is updated successfully'
+        response_object['data'] = {
+            'banner': banner.to_json()
+        }
+
+        return jsonify(response_object), 200
 
     except Exception as e:
         response_object['error'] = str(e)
