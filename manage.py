@@ -38,19 +38,17 @@ def seed_db():
         role="admin",
         is_admin=True
     )
-
+    admin.profile_picture = "https://ik.imagekit.io/zol0vio/admin-user-icon_uOWwzefMA.jpg"
     admin.insert()
 
-    location = Location(
+    Location(
         address="1234 Main Street",
         city="New York",
         state="NY",
         country="USA",
         zipcode="12345",
         user_id=admin.id
-    )
-
-    location.insert()
+    ).insert()
 
     user = User(
         firstname="John",
@@ -59,19 +57,17 @@ def seed_db():
         mobile_no="2234567890",
         password="greaterthaneight",
     )
-
+    user.profile_picture = "https://ik.imagekit.io/zol0vio/user_icon_G2tZaIWiQ.png"
     user.insert()
 
-    location = Location(
+    Location(
         address="1234 Main Boulevard",
         city="Manchester",
         state="NH",
         country="UK",
         zipcode="12345",
         user_id=user.id
-    )
-
-    location.insert()
+    ).insert()
 
     print("Database seeded!")
 
