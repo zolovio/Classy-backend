@@ -60,7 +60,9 @@ def create_order(user_id):
         shipping_fee = post_data.get('shipping_fee')
         location_id = post_data.get('location_id')
 
-        shopping_cart = ShoppingCart.query.filter_by(user_id=user_id).first()
+        shopping_cart = ShoppingCart.query.filter_by(
+            user_id=user_id, is_active=True).first()
+
         if not shopping_cart:
             response_object['message'] = 'Cart does not exist'
             return jsonify(response_object), 200
@@ -69,16 +71,15 @@ def create_order(user_id):
             response_object['message'] = 'Cart does not belong to user'
             return jsonify(response_object), 200
 
-        if not shopping_cart.is_active:
-            response_object['message'] = 'Cart is already processed'
-            return jsonify(response_object), 200
-
         if not shopping_cart.checkedout_at:
             response_object['message'] = 'Cart is not checked out yet'
             return jsonify(response_object), 200
 
-        location = Location.query.get(location_id) or Location.query.filter_by(
-            user_id=user_id).first()
+        if location_id:
+            location = Location.query.get(location_id)
+
+        else:
+            location = Location.query.filter_by(user_id=user_id).first()
 
         if not location:
             response_object['message'] = 'Location not found, please add one'
@@ -86,7 +87,7 @@ def create_order(user_id):
 
         order = Order(
             user_id=user_id,
-            location_id=location_id,
+            location_id=location.id,
             total_quantity=0,
             total_tax=0,
             total_amount=0,
@@ -145,6 +146,7 @@ def create_order(user_id):
         response_object['status'] = True
         response_object['message'] = 'Order created successfully'
         response_object['data'] = {
+            'order_id': order.id,
             'order': order.to_json()
         }
 
@@ -188,8 +190,11 @@ def update_order(user_id, order_id):
             response_object['message'] = 'Order does not belong to user'
             return jsonify(response_object), 200
 
-        location = Location.query.get(location_id) or Location.query.filter_by(
-            user_id=user_id).first()
+        if location_id:
+            location = Location.query.get(location_id)
+
+        else:
+            location = Location.query.filter_by(user_id=user_id).first()
 
         if not location:
             response_object['message'] = 'Location not found, please update'
@@ -202,6 +207,7 @@ def update_order(user_id, order_id):
         response_object['status'] = True
         response_object['message'] = 'Order updated successfully'
         response_object['data'] = {
+            'order_id': order.id,
             'order': order.to_json()
         }
 
@@ -418,6 +424,40 @@ def get_order(user_id, order_id):
     return jsonify(response_object), 200
 
 
+@order_blueprint.route('/order/get', methods=['GET'])
+@authenticate
+def get_orders(user_id):
+    """Get orders"""
+
+    response_object = {
+        'status': False,
+        'message': 'Invalid payload',
+    }
+
+    status = request.args.get('status')
+
+    if status and status in ORDER_STATUS_LIST:
+        status = str(status).lower()
+    else:
+        status = None
+
+    if status:
+        logger.info('status: {}'.format(status))
+        orders = Order.query.filter_by(user_id=user_id, status=status).all()
+
+    else:
+        orders = Order.query.filter_by(user_id=user_id).all()
+
+    response_object['status'] = True
+    response_object['message'] = '{} order(s) found of {} status'.format(
+        len(orders), status if status else 'any')
+    response_object['data'] = {
+        'orders': [order.to_json() for order in orders]
+    }
+
+    return jsonify(response_object), 200
+
+
 @order_blueprint.route('/order/list', methods=['GET'])
 def list_orders():
     """List orders"""
@@ -454,9 +494,9 @@ def get_coupon(user_id):
 
     response_object = {
         'status': True,
-        'message': 'Coupon retrieved',
+        'message': '{} coupon(s) found'.format(len(coupons)),
         'data': {
-            'coupon': [coupon.to_json() for coupon in coupons if coupon.is_active]
+            'coupon': [coupon.to_json() for coupon in coupons]
         }
     }
 
