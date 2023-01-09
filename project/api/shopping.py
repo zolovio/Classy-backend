@@ -1,5 +1,6 @@
 import os
 import logging
+import requests
 from datetime import datetime
 
 from flask import Blueprint, jsonify, request
@@ -266,13 +267,13 @@ def remove_from_cart(user_id, cart_item_id):
     return jsonify(response_object), 200
 
 
-@shopping_blueprint.route('/shopping/checkout', methods=['GET'])
+@shopping_blueprint.route('/shopping/checkout', methods=['POST'])
 @authenticate
 def checkout(user_id):
     """Checkout cart"""
     # Make user cart inactive and add checkedout date to cart
     response_object = {
-        'status': True,
+        'status': False,
         'message': 'Invalid payload.'
     }
 
@@ -297,6 +298,44 @@ def checkout(user_id):
 
     shopping_cart.checkedout_at = datetime.utcnow()
     shopping_cart.update()
+
+    # call create order api to create order
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': request.headers.get('Authorization')
+    }
+
+    json_data = request.get_json()
+
+    data = {
+        'shipping_fee': json_data.get('shipping_fee', 0.0),
+    }
+
+    order_url = 'http://localhost:5000/order/create'
+    response = requests.post(url=order_url, json=data, headers=headers)
+
+    if response.status_code != 200:
+        response_object['order'] = {
+            'status': False,
+            'message': 'Order creation failed',
+        }
+
+    elif not response.json()['status']:
+        response = response.json()
+        logger.info(response)
+        response_object['order'] = {
+            'status': False,
+            'message': response['message']
+        }
+
+    else:
+        response = response.json()
+        logger.info(response)
+        response_object['order'] = {
+            'status': True,
+            'message': response['message'],
+            'order_id': response['data']['order_id']
+        }
 
     response_object['status'] = True
     response_object['message'] = 'Cart checked out at {}'.format(
