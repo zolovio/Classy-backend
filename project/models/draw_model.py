@@ -47,7 +47,7 @@ class Draw(db.Model):
 
     def to_json(self):
         campaign = Campaign.query.get(self.campaign_id).to_json()
-        winner = User.query.get(self.winner_id).to_json()
+        winner = User.query.get(self.winner_id)
 
         campaign.pop('user')
         campaign['sku'].pop('sku_images')
@@ -58,6 +58,6 @@ class Draw(db.Model):
             "video_url": self.video_url,
             "start_date": self.start_date.strftime("%B %-d, %Y %I:%M%p") if self.start_date else None,
             "draw_date": self.end_date.strftime("%B %-d, %Y %I:%M%p") if self.end_date else None,
-            "winner": winner,
+            "winner": winner.to_json() if winner else None,
             "campaign": campaign
         }

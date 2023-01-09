@@ -15,6 +15,8 @@ from project.exceptions import APIError
 
 auth_blueprint = Blueprint('auth', __name__)
 
+logger = logging.getLogger(__name__)
+
 
 @auth_blueprint.route('/users/auth/access_token', methods=['GET'])
 @authenticate
@@ -238,12 +240,28 @@ def google_login_token():
 
     try:
         # Specify the CLIENT_ID of the app that accesses the backend:
-        try:
-            idinfo = id_token.verify_oauth2_token(
-                access_token, google_requests.Request(), AUTH_KEYS['GOOGLE']['CLIENT_ID_LEAPTURE'])
-        except:
-            idinfo = id_token.verify_oauth2_token(
-                access_token, google_requests.Request(), AUTH_KEYS['GOOGLE']['IOS_CLIENT_ID'])
+        # try:
+        #     idinfo = id_token.verify_oauth2_token(
+        #         access_token, google_requests.Request(), AUTH_KEYS['GOOGLE']['CLIENT_ID_LEAPTURE'])
+        # except Exception as exp:
+        #     logger.error(str(exp))
+        #     response_object['message'] = str(exp)
+        #     idinfo = id_token.verify_oauth2_token(
+        #         access_token, google_requests.Request(), AUTH_KEYS['GOOGLE']['IOS_CLIENT_ID'])
+
+        # idinfo = id_token.verify_firebase_token(
+        #     access_token, google_requests.Request(),
+        #     "1:705540919954:android:bec4aefcaa7bef0ea68c4b")
+
+        HTTP_REQUEST = google_requests.Request()
+        app_id = "1:705540919954:android:bec4aefcaa7bef0ea68c4b"
+        idinfo = id_token.verify_firebase_token(
+            access_token, HTTP_REQUEST, app_id)
+
+        # idinfo = id_token.verify_oauth2_token(
+        #     access_token, google_requests.Request())
+
+        logger.info(idinfo)
 
         if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
             raise ValueError('Wrong issuer.')
@@ -286,7 +304,7 @@ def google_login_token():
 
     except ValueError as ex:
         logging.error(ex)
-        response_object['message'] = 'There is an error processing this token'
+        response_object['message'] = str(ex)
         return jsonify(response_object), 400
 
 
