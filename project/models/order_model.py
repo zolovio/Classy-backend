@@ -63,11 +63,14 @@ class Order(db.Model):
         db.session.commit()
 
     def to_json(self):
+        user = User.query.get(self.user_id)
+        location = Location.query.get(self.location_id)
+
         return {
             "id": self.id,
-            "user_id": self.user_id,
+            "user": user.to_json(),
             "status": self.status,
-            "location_id": self.location_id,
+            "location": location.to_json() if location else None,
             "booking_date": self.booking_date.strftime("%Y-%m-%d") if self.booking_date else None,
             "total_tax": self.total_tax,
             "shipping_fee": self.shipping_fee,

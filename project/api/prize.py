@@ -220,13 +220,13 @@ def get_winners():
 
     for draw in draws:
         draw['coupon'] = Coupon.query.filter_by(
-            user_id=draw['winner_id']).first().to_json()
+            user_id=draw['winner']['id']).first().to_json()
 
     response_object = {
         'status': True,
         'message': '{} winner(s) found'.format(len(draws)),
         'data': {
-            'draws': draws
+            'winners': draws
         }
     }
 
