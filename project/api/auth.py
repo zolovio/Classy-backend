@@ -147,11 +147,13 @@ def register():
 
     field_types = {
         "firstname": str, "lastname": str, "email": str,
-        "mobile_no": str, "password": str,
-        "profile_pic": str, "location": dict
+        "mobile_no": str, "password": str, "dob": str,
+        "gender": str, "profile_pic": str, "location": dict
     }
 
     required_fields = list(field_types.keys())
+    required_fields.remove('dob')
+    required_fields.remove('gender')
     required_fields.remove('profile_pic')
     required_fields.remove('location')
 
@@ -163,6 +165,8 @@ def register():
     mobile_no = post_data.get("mobile_no")
     profile_pic = post_data.get('profile_pic')
     password = post_data.get('password')
+    dob = post_data.get('dob')
+    gender = post_data.get('gender')
     location = post_data.get('location')
     try:
         user = User.query.filter_by(email=email).first()
@@ -178,7 +182,9 @@ def register():
                 lastname=post_data.get('lastname'),
                 email=email,
                 mobile_no=mobile_no,
-                password=password
+                password=password,
+                dob=dob,
+                gender=gender
             )
 
             new_user.profile_pic = profile_pic or None
