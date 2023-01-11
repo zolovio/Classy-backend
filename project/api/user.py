@@ -186,7 +186,8 @@ def update_user_info(resp):
         user = User.query.get(resp)
 
         field_types = {
-            "firstname": str, "lastname": str, "email": str, "password": str,
+            "firstname": str, "lastname": str, "email": str,
+            "password": str, "dob": str, "gender": str,
             "mobile_no": str, "profile_picture": str, "active": bool
         }
 
@@ -203,7 +204,9 @@ def update_user_info(resp):
         user.firstname = post_data.get('firstname') or user.firstname
         user.lastname = post_data.get('lastname') or user.lastname
         user.email = post_data.get('email') or user.email
-        user.gender = post_data.get("mobile_no") or user.mobile_no
+        user.mobile_no = post_data.get("mobile_no") or user.mobile_no
+        user.gender = post_data.get("gender") or user.gender
+        user.dob = post_data.get("dob") or user.dob
         user.profile_picture = post_data.get(
             'profile_picture') or user.profile_picture
         user.active = post_data.get('active') or user.active
