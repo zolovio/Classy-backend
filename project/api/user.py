@@ -170,7 +170,7 @@ def upload_picture(user_id):
 
 @user_blueprint.route('/users/update_info', methods=['PATCH'])
 @authenticate
-def update_user_info(resp):
+def update_user_info(user_id):
     """Update user info"""
     post_data = request.get_json()
 
@@ -183,12 +183,13 @@ def update_user_info(resp):
         return jsonify(response_object), 200
 
     try:
-        user = User.query.get(resp)
+        user = User.query.get(user_id)
 
         field_types = {
             "firstname": str, "lastname": str, "email": str,
             "password": str, "dob": str, "gender": str,
-            "mobile_no": str, "profile_picture": str, "active": bool
+            "mobile_no": str, "profile_picture": str, "active": bool,
+            "location": dict
         }
 
         post_data = field_type_validator(post_data, field_types)
@@ -213,6 +214,36 @@ def update_user_info(resp):
 
         user.update()
 
+        if post_data.get("location"):
+            field_types = {
+                "address": str, "city": str, "state": str,
+                "country": str, "zipcode": str
+            }
+
+            location = post_data.get("location")
+            location = field_type_validator(location, field_types)
+
+            loc = Location.query.filter_by(user_id=user_id)
+
+            if not loc:
+                Location(
+                    address=location.get("address"),
+                    city=location.get("city"),
+                    state=location.get("state"),
+                    country=location.get("country"),
+                    zipcode=location.get("zipcode"),
+                    user_id=user_id
+                ).insert()
+
+            else:
+                loc.address = location.get("address") or loc.address
+                loc.city = location.get("city") or loc.city
+                loc.state = location.get("state") or loc.state
+                loc.country = location.get("country") or loc.country
+                loc.zipcode = location.get("zipcode") or loc.zipcode
+
+                loc.update()
+
         response_object['status'] = True
         response_object['message'] = 'User info updated successfully.'
         response_object['user'] = user.to_json()
@@ -220,6 +251,7 @@ def update_user_info(resp):
         return jsonify(response_object), 200
 
     except Exception as e:
+        db.session.rollback()
         response_object['message'] = str(e)
         return jsonify(response_object), 400
 
