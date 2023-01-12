@@ -18,9 +18,10 @@ class User(db.Model):
     email = db.Column(db.String(128), unique=True, nullable=False)
     mobile_no = db.Column(db.String(128), unique=True, nullable=True)
     password = db.Column(db.String(255), nullable=False)
-    profile_picture = db.Column(db.String(128), default="", nullable=True)
-    dob = db.Column(db.DateTime, default="", nullable=True)
-    gender = db.Column(db.String(128), default="male", nullable=True)
+
+    dob = db.Column(db.DateTime, nullable=True)
+    gender = db.Column(db.String(128), nullable=True)
+    profile_picture = db.Column(db.String(128), nullable=True)
 
     role = db.Column(db.String(128), default="user", nullable=False)
     active = db.Column(db.Boolean, default=True, nullable=False)
@@ -32,16 +33,15 @@ class User(db.Model):
     def __repr__(self):
         return f"User {self.id} {self.username}"
 
-    def __init__(self, firstname: str, lastname: str, email: str, mobile_no: str, password: str,
-                 dob: str, gender: str, role: str = "user", is_admin: bool = False):
+    def __init__(self, firstname: str, lastname: str, email: str,
+                 mobile_no: str, password: str,
+                 role: str = "user", is_admin: bool = False):
         self.firstname = firstname
         self.lastname = lastname
         self.email = email
         self.mobile_no = mobile_no
         self.password = bcrypt.generate_password_hash(
             password, current_app.config.get("BCRYPT_LOG_ROUNDS")).decode()
-        self.gender = gender
-        self.dob = dob
         self.role = role
         self.is_admin = is_admin
 

@@ -182,12 +182,12 @@ def register():
                 lastname=post_data.get('lastname'),
                 email=email,
                 mobile_no=mobile_no,
-                password=password,
-                dob=dob,
-                gender=gender
+                password=password
             )
 
             new_user.profile_pic = profile_pic or None
+            new_user.dob = dob or None
+            new_user.gender = gender or None
             new_user.insert()
 
             if location:
@@ -202,7 +202,7 @@ def register():
 
             auth_token = new_user.encode_auth_token(new_user.id)
             response_object = {
-                'status': False,
+                'status': True,
                 'message': 'User registered successfully.',
                 'auth_token': auth_token.decode('utf-8'),
                 'id': new_user.id
