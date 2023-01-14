@@ -10,7 +10,9 @@ from project.models import (
     Location,
     Campaign,
     Sku,
-    Banners
+    Banners,
+    ShoppingCart,
+    CartItem
 )
 
 from project.api.utils import secure_file, upload_file
@@ -165,7 +167,7 @@ def upload_picture(user_id):
         except:
             pass
         finally:
-            return jsonify({"message": str(e), "status": False}), 400
+            return jsonify({"message": str(e), "status": False}), 200
 
 
 @user_blueprint.route('/users/update_info', methods=['PATCH'])
@@ -262,7 +264,7 @@ def update_user_info(user_id):
         db.session.rollback()
         logger.error("Error updating user info: {}".format(e))
         response_object['message'] = str(e)
-        return jsonify(response_object), 400
+        return jsonify(response_object), 200
 
 
 @user_blueprint.route('/users/update_location', methods=['PUT', 'PATCH'])
@@ -328,7 +330,7 @@ def update_user_location(user_id):
 
     except Exception as e:
         response_object['message'] = str(e)
-        return jsonify(response_object), 400
+        return jsonify(response_object), 200
 
 
 @user_blueprint.route('/users/home/mobile', methods=['GET'])
@@ -367,9 +369,17 @@ def get_user_mobile_home(user_id):
             else:
                 carousal.append(campaign.to_json())
 
+        # get total carts
+        cart = ShoppingCart.query.filter_by(
+            user_id=user_id, is_active=True).all()
+
+        cart_length = len(CartItem.query.filter_by(
+            cart_id=cart.id).all()) if cart else 0
+
         response_object['data']['carousal'] = carousal
         response_object['data']['closing'] = closing
         response_object['data']['active'] = active
+        response_object['data']['cart_length'] = cart_length
 
         # get banners
         banners = Banners.query.filter_by(is_active=True).all()
@@ -382,4 +392,4 @@ def get_user_mobile_home(user_id):
 
     except Exception as e:
         response_object['message'] = str(e)
-        return jsonify(response_object), 400
+        return jsonify(response_object), 200
