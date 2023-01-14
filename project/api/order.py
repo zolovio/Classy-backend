@@ -4,6 +4,7 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
+from project import db
 from project.exceptions import APIError
 from project.api.utils import refresh_campaigns
 from project.api.authentications import authenticate
@@ -153,10 +154,10 @@ def create_order(user_id):
         return jsonify(response_object), 200
 
     except Exception as e:
+        db.session.rollback()
         logger.error(e)
-        response_object['error'] = str(e)
-        response_object['message'] = 'Something went wrong, please try again'
-        return jsonify(response_object), 400
+        response_object['message'] = str(e)
+        return jsonify(response_object), 200
 
 
 @order_blueprint.route('/order/update/<int:order_id>', methods=['PATCH'])
@@ -170,16 +171,15 @@ def update_order(user_id, order_id):
 
     try:
         post_data = request.get_json()
-        field_types = {'shipping_fee': float, 'location_id': int}
-
-        required_fields = list(field_types.keys())
-        required_fields.remove('location_id')
+        field_types = {'shipping_fee': float, 'location_id': int,
+                       'order_sku_id': int, 'quantity': int}
 
         post_data = field_type_validator(post_data, field_types)
-        required_validator(post_data, required_fields)
 
         shipping_fee = post_data.get('shipping_fee')
         location_id = post_data.get('location_id')
+        order_sku_id = post_data.get('order_sku_id')
+        quantity = post_data.get('quantity')
 
         order = Order.query.get(order_id)
         if not order:
@@ -200,6 +200,70 @@ def update_order(user_id, order_id):
             response_object['message'] = 'Location not found, please update'
             return jsonify(response_object), 200
 
+        if order_sku_id:
+            required_validator(post_data, ['quantity'])
+
+            order_sku = Order_Sku.query.filter_by(
+                order_id=order_id, id=order_sku_id).first()
+            if not order_sku:
+                response_object['message'] = 'Order sku not found'
+                return jsonify(response_object), 200
+
+            sku_stock = Sku_Stock.query.get(order_sku.sku_stock_id)
+            if not sku_stock:
+                response_object['message'] = 'Sku stock not found'
+                return jsonify(response_object), 200
+
+            sku = Sku.query.get(sku_stock.sku_id)
+            if not sku:
+                response_object['message'] = 'Sku not found'
+                return jsonify(response_object), 200
+
+            if quantity < order_sku.quantity:
+                sku_stock.stock += order_sku.quantity - quantity
+                sku_stock.update()
+
+                sku.number_sold -= order_sku.quantity - quantity
+                sku.update()
+
+                order.total_quantity -= order_sku.quantity - quantity
+                order.total_amount -= sku.price * \
+                    (order_sku.quantity - quantity)
+                order.total_tax -= sku.sales_tax * \
+                    (order_sku.quantity - quantity)
+                order.update()
+
+                if quantity == 0:
+                    order_sku.delete()
+
+                else:
+                    order_sku.quantity = quantity
+                    order_sku.total_price = sku.price * quantity
+                    order_sku.sales_tax = sku.sales_tax * quantity
+                    order_sku.update()
+
+            elif quantity > order_sku.quantity:
+                if (quantity - order_sku.quantity) > sku_stock.stock:
+                    response_object['message'] = 'Not enough stock'
+                    return jsonify(response_object), 200
+
+                sku_stock.stock -= quantity - order_sku.quantity
+                sku_stock.update()
+
+                sku.number_sold += quantity - order_sku.quantity
+                sku.update()
+
+                order.total_quantity += quantity - order_sku.quantity
+                order.total_amount += sku.price * \
+                    (quantity - order_sku.quantity)
+                order.total_tax += sku.sales_tax * \
+                    (quantity - order_sku.quantity)
+
+                order_sku.quantity = quantity
+                order_sku.total_price = sku.price * quantity
+                order_sku.sales_tax = sku.sales_tax * quantity
+                order_sku.update()
+
         order.shipping_fee = shipping_fee
         order.location_id = location_id
         order.update()
@@ -214,10 +278,10 @@ def update_order(user_id, order_id):
         return jsonify(response_object), 200
 
     except Exception as e:
+        db.session.rollback()
         logger.error(e)
-        response_object['error'] = str(e)
-        response_object['message'] = 'Something went wrong, please try again'
-        return jsonify(response_object), 400
+        response_object['message'] = str(e)
+        return jsonify(response_object), 200
 
 
 @order_blueprint.route('/order/delete/<int:order_id>', methods=['DELETE'])
@@ -249,7 +313,7 @@ def delete_order(user_id, order_id):
 
             # update sku_stock
             sku_stock = Sku_Stock.query.get(order_item.sku_stock_id)
-            sku_stock.quantity += order_item.quantity
+            sku_stock.stock += order_item.quantity
             sku_stock.update()
 
             # update sku
@@ -271,10 +335,10 @@ def delete_order(user_id, order_id):
         return jsonify(response_object), 200
 
     except Exception as e:
+        db.session.rollback()
         logger.error(e)
-        response_object['error'] = str(e)
-        response_object['message'] = 'Something went wrong, please try again'
-        return jsonify(response_object), 400
+        response_object['message'] = str(e)
+        return jsonify(response_object), 200
 
 
 @order_blueprint.route('/order/status/<int:order_id>', methods=['GET', 'PUT'])

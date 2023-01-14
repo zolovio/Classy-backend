@@ -10,7 +10,9 @@ from project.models import (
     Location,
     Campaign,
     Sku,
-    Banners
+    Banners,
+    ShoppingCart,
+    CartItem
 )
 
 from project.api.utils import secure_file, upload_file
@@ -165,7 +167,7 @@ def upload_picture(user_id):
         except:
             pass
         finally:
-            return jsonify({"message": str(e), "status": False}), 400
+            return jsonify({"message": str(e), "status": False}), 200
 
 
 @user_blueprint.route('/users/update_info', methods=['PATCH'])
@@ -214,6 +216,8 @@ def update_user_info(user_id):
 
         user.update()
 
+        loc = Location.query.filter_by(user_id=user_id).first()
+
         if post_data.get("location"):
             field_types = {
                 "address": str, "city": str, "state": str,
@@ -223,17 +227,17 @@ def update_user_info(user_id):
             location = post_data.get("location")
             location = field_type_validator(location, field_types)
 
-            loc = Location.query.filter_by(user_id=user_id)
-
             if not loc:
-                Location(
+                loc = Location(
                     address=location.get("address"),
                     city=location.get("city"),
                     state=location.get("state"),
                     country=location.get("country"),
                     zipcode=location.get("zipcode"),
                     user_id=user_id
-                ).insert()
+                )
+
+                loc.insert()
 
             else:
                 loc.address = location.get("address") or loc.address
@@ -244,16 +248,23 @@ def update_user_info(user_id):
 
                 loc.update()
 
+        updated_user = user.to_json()
+
+        updated_user['location'] = loc.to_json() if loc else None
+
         response_object['status'] = True
         response_object['message'] = 'User info updated successfully.'
-        response_object['user'] = user.to_json()
+        response_object['data'] = {
+            'user': updated_user
+        }
 
         return jsonify(response_object), 200
 
     except Exception as e:
         db.session.rollback()
+        logger.error("Error updating user info: {}".format(e))
         response_object['message'] = str(e)
-        return jsonify(response_object), 400
+        return jsonify(response_object), 200
 
 
 @user_blueprint.route('/users/update_location', methods=['PUT', 'PATCH'])
@@ -311,13 +322,15 @@ def update_user_location(user_id):
 
         response_object['status'] = True
         response_object['message'] = 'User location updated successfully.'
-        response_object['location'] = location.to_json()
+        response_object['data'] = {
+            'location': location.to_json()
+        }
 
         return jsonify(response_object), 200
 
     except Exception as e:
         response_object['message'] = str(e)
-        return jsonify(response_object), 400
+        return jsonify(response_object), 200
 
 
 @user_blueprint.route('/users/home/mobile', methods=['GET'])
@@ -356,9 +369,17 @@ def get_user_mobile_home(user_id):
             else:
                 carousal.append(campaign.to_json())
 
+        # get total carts
+        cart = ShoppingCart.query.filter_by(
+            user_id=user_id, is_active=True).all()
+
+        cart_length = len(CartItem.query.filter_by(
+            cart_id=cart.id).all()) if cart else 0
+
         response_object['data']['carousal'] = carousal
         response_object['data']['closing'] = closing
         response_object['data']['active'] = active
+        response_object['data']['cart_length'] = cart_length
 
         # get banners
         banners = Banners.query.filter_by(is_active=True).all()
@@ -371,4 +392,4 @@ def get_user_mobile_home(user_id):
 
     except Exception as e:
         response_object['message'] = str(e)
-        return jsonify(response_object), 400
+        return jsonify(response_object), 200
