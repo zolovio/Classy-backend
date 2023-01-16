@@ -179,7 +179,6 @@ def update_order(user_id, order_id):
         shipping_fee = post_data.get('shipping_fee')
         location_id = post_data.get('location_id')
         order_sku_id = post_data.get('order_sku_id')
-        quantity = post_data.get('quantity')
 
         order = Order.query.get(order_id)
         if not order:
@@ -202,6 +201,7 @@ def update_order(user_id, order_id):
 
         if order_sku_id:
             required_validator(post_data, ['quantity'])
+            quantity = post_data.get('quantity')
 
             order_sku = Order_Sku.query.filter_by(
                 order_id=order_id, id=order_sku_id).first()
@@ -231,16 +231,6 @@ def update_order(user_id, order_id):
                     (order_sku.quantity - quantity)
                 order.total_tax -= sku.sales_tax * \
                     (order_sku.quantity - quantity)
-                order.update()
-
-                if quantity == 0:
-                    order_sku.delete()
-
-                else:
-                    order_sku.quantity = quantity
-                    order_sku.total_price = sku.price * quantity
-                    order_sku.sales_tax = sku.sales_tax * quantity
-                    order_sku.update()
 
             elif quantity > order_sku.quantity:
                 if (quantity - order_sku.quantity) > sku_stock.stock:
@@ -259,13 +249,17 @@ def update_order(user_id, order_id):
                 order.total_tax += sku.sales_tax * \
                     (quantity - order_sku.quantity)
 
+            if quantity == 0:
+                order_sku.delete()
+
+            else:
                 order_sku.quantity = quantity
                 order_sku.total_price = sku.price * quantity
                 order_sku.sales_tax = sku.sales_tax * quantity
                 order_sku.update()
 
-        order.shipping_fee = shipping_fee
-        order.location_id = location_id
+        order.shipping_fee = shipping_fee or order.shipping_fee
+        order.location_id = location_id or order.location_id
         order.update()
 
         response_object['status'] = True
@@ -554,7 +548,7 @@ def list_orders():
 @authenticate
 def get_coupon(user_id):
     """Get coupon"""
-    coupons = Coupon.query.filter_by(user_id=user_id).all()
+    coupons = Coupon.query.filter_by(user_id=int(user_id)).all()
 
     response_object = {
         'status': True,

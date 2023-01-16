@@ -14,6 +14,7 @@ class Sku(db.Model):
         - category: str
 
         - price: float
+        - sales_tax: float
 
         - quantity: int
         - number_sold: int
@@ -34,7 +35,7 @@ class Sku(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
 
     name = db.Column(db.String(128), nullable=False)
-    description = db.Column(db.String(128), nullable=False)
+    description = db.Column(db.Text, nullable=True)
     category = db.Column(db.String(128), nullable=False)
 
     price = db.Column(db.Float, nullable=False)
@@ -201,7 +202,7 @@ class Prize(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
 
     name = db.Column(db.String(128), nullable=False)
-    description = db.Column(db.String(128), nullable=False)
+    description = db.Column(db.Text, nullable=True)
     image = db.Column(db.String(128), nullable=False)
 
     def __repr__(self):
@@ -263,7 +264,7 @@ class Campaign(db.Model):
     prize_id = db.Column(db.Integer, db.ForeignKey("prize.id"), nullable=False)
 
     name = db.Column(db.String(128), nullable=False)
-    description = db.Column(db.String(128), nullable=False)
+    description = db.Column(db.Text, nullable=True)
     image = db.Column(db.String(128), nullable=False)
     threshold = db.Column(db.Integer, nullable=False)
 

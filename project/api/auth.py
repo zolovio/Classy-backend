@@ -215,6 +215,7 @@ def register():
             return jsonify(response_object), 200
 
     except Exception as e:
+        db.session.rollback()
         logging.error(e)
         response_object['message'] = 'Try again: ' + str(e)
         return jsonify(response_object), 400
@@ -347,3 +348,58 @@ def login_social_media(user_profile):
 
     except Exception as e:
         return None
+
+
+@auth_blueprint.route('/users/auth/verify', methods=['POST'])
+def auth_login():
+    post_data = request.get_json()
+
+    response_object = {
+        'status': False,
+        'message': 'Invalid payload.'
+    }
+
+    if not post_data:
+        return jsonify(response_object), 200
+
+    field_types = {"username": str}
+    required_fields = ["username"]
+
+    post_data = field_type_validator(post_data, field_types)
+    required_validator(post_data, required_fields)
+
+    username = post_data.get('username')
+
+    try:
+        try:
+            email_validator(username)
+            user = User.query.filter_by(email=username).first()
+        except APIError:
+            user = User.query.filter_by(mobile_no=username).first()
+
+        if not user:
+            response_object['message'] = 'User does not exist'
+            return jsonify(response_object), 200
+
+        if user.account_suspension:
+            response_object['message'] = 'Account is suspended by admin.'
+            return jsonify(response_object), 200
+
+        user.active = True
+        user.update()
+
+        auth_token = user.encode_auth_token(user.id)
+        if auth_token:
+            response_object = {
+                "status": True,
+                "message": "User logged in successfully.",
+                "auth_token": auth_token.decode('utf-8'),
+                "id": user.id
+            }
+
+            return jsonify(response_object), 200
+
+    except Exception as e:
+        logging.error(e)
+        response_object['message'] = 'Try again: ' + str(e)
+        return jsonify(response_object), 200

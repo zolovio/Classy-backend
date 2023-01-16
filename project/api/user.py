@@ -371,7 +371,7 @@ def get_user_mobile_home(user_id):
 
         # get total carts
         cart = ShoppingCart.query.filter_by(
-            user_id=user_id, is_active=True).all()
+            user_id=user_id, is_active=True).first()
 
         cart_length = len(CartItem.query.filter_by(
             cart_id=cart.id).all()) if cart else 0
