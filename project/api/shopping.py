@@ -197,7 +197,7 @@ def update_cart(user_id, cart_item_id):
         quantity = post_data.get('quantity')
 
         # check if cart exists
-        shopping_cart = ShoppingCart.query.filter_by(user_id=user_id).first()
+        shopping_cart = ShoppingCart.query.filter_by(user_id=user_id, is_active=True).first()
         if not shopping_cart:
             response_object['message'] = 'Cart does not exist'
             return jsonify(response_object), 200
@@ -215,10 +215,10 @@ def update_cart(user_id, cart_item_id):
             return jsonify(response_object), 200
 
         sku = Sku.query.get(sku_stock.sku_id)
-        if not shopping_cart.is_active:
-            response_object['message'] = 'Cart containing item {} already checked out'.format(
-                sku.name)
-            return jsonify(response_object), 200
+        # if not shopping_cart.is_active:
+        #     response_object['message'] = 'Cart containing item {} already checked out'.format(
+        #         sku.name)
+        #     return jsonify(response_object), 200
 
         if quantity < cart_item.quantity:
             # add stock

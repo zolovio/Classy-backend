@@ -181,7 +181,7 @@ def delete_prize(user_id, prize_id):
 def get_pre_draws():
     """Get all pre-draws"""
     draws = Draw.query.filter(
-        Draw.end_date >= datetime.now(),
+        Draw.start_date != None,
         Draw.winner_id == None
     ).all()
 
@@ -199,7 +199,9 @@ def get_pre_draws():
 @prize_blueprint.route('/prize/past-draws', methods=['GET'])
 def get_past_draws():
     """Get all past-draws"""
-    draws = Draw.query.filter(Draw.winner_id != None).all()
+    draws = Draw.query.filter(
+        Draw.winner_id != None
+    ).all()
 
     response_object = {
         'status': True,
