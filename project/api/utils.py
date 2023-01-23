@@ -1,11 +1,12 @@
 import os
-import logging
+import base64
 import random
+import logging
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from imagekitio.client import ImageKit
-from imagekitio.models.UploadFileRequestOptions import UploadFileRequestOptions
 
+# from project import scheduler
 from project.exceptions import APIError
 from project.models import Sku, User, Coupon, Campaign, Draw
 
@@ -22,11 +23,29 @@ imagekit = ImageKit(
 )
 
 
-def upload_file(file, file_name):
-    response = imagekit.upload_file(
-        file=file,
-        file_name=file_name
-    )
+def upload_file(file_object):
+    try:
+        secured_file = secure_file(file_object)
+        filename = secured_file["filename"]
+
+        # get current path
+        current_path = os.path.dirname(os.path.abspath(__name__))
+        file_path = os.path.join(current_path, filename)
+        logger.info("File path: {}".format(file_path))
+
+        with open(file_path, mode="rb") as img:
+            imgstr = base64.b64encode(img.read())
+
+        response = imagekit.upload_file(
+            file=imgstr,
+            file_name=filename
+        )
+
+        # delete file
+        os.remove(filename)
+    except Exception as e:
+        logger.error("Error: {}".format(e))
+        raise APIError("Error uploading file: {}".format(e))
 
     return response
 
@@ -35,10 +54,10 @@ def secure_file(file) -> dict:
     filename = secure_filename(file.filename)
     filetype = file.content_type
 
-    # verify file type
-    file_ext = filetype.split('/')[-1]
-    if file_ext not in ("png", "jpg", "jpeg", "tiff"):
-        raise APIError("Unsupported file format: {}".format(filetype))
+    # # verify file type
+    # file_ext = filetype.split('/')[-1]
+    # if file_ext not in ("png", "jpg", "jpeg", "tiff"):
+    #     raise APIError("Unsupported file format: {}".format(filetype))
 
     # save file locally
     file.save(filename)
@@ -83,12 +102,18 @@ def refresh_campaigns():
             draw.end_date = draw.start_date + timedelta(days=7)
             draw.update()
 
+    # with open('cronjob.log', 'a') as f:
+    #     f.write(
+    #         f"Cronjob:refresh_campaigns[{datetime.now()}]:campaigns refreshed!\n")
+
 
 def lucky_draw():
     draws = Draw.query.filter(
         Draw.end_date >= datetime.now(), Draw.winner_id == None).all()
 
-    logger.info("Processing {} draws".format(len(draws)))
+    # with open('cronjob.log', 'a') as f:
+    #     f.write(
+    #         f"Cronjob:refresh_campaigns[{datetime.now()}]:Processing {len(draws)} draws!\n")
 
     for draw in draws:
         campaign = Campaign.query.get(draw.campaign_id)
@@ -106,3 +131,13 @@ def lucky_draw():
         draw.update()
 
         return winner
+
+    # with open('cronjob.log', 'a') as f:
+    #     f.write(
+    #         f"Cronjob:refresh_campaigns[{datetime.now()}]:draws updated!\n")
+
+# @scheduler.task("interval", id="lucky_draw_task", seconds=0)
+# def lucky_draw_task():
+#     print("running task")
+#     refresh_campaigns()
+#     lucky_draw()
