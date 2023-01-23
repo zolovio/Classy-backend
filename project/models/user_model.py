@@ -108,7 +108,7 @@ class Location(db.Model):
     __tablename__ = "location"
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    address = db.Column(db.String(128), nullable=False)
+    address = db.Column(db.Text, nullable=False)
     city = db.Column(db.String(128), nullable=False)
     state = db.Column(db.String(128), nullable=False)
     country = db.Column(db.String(128), nullable=False)

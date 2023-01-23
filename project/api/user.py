@@ -1,5 +1,3 @@
-import os
-import base64
 import logging
 
 from flask import Blueprint, jsonify, request
@@ -15,11 +13,10 @@ from project.models import (
     CartItem
 )
 
-from project.api.utils import secure_file, upload_file
+from project.api.utils import upload_file
 from project.api.authentications import authenticate
 
 from project import db, bcrypt
-from project.exceptions import APIError
 from project.api.validators import email_validator, field_type_validator, required_validator
 
 
@@ -111,29 +108,13 @@ def get_user_by_auth_token(user_id):
 @user_blueprint.route('/users/upload', methods=['POST'])
 @authenticate
 def upload_picture(user_id):
-    filename = None
     try:
         file = request.files['file']
         if file:
-            # create secure filename and save locally
-            secured_file = secure_file(file)
-            filename = secured_file["filename"]
-
-            # get current path
-            current_path = os.path.dirname(os.path.abspath(__name__))
-            file_path = os.path.join(current_path, filename)
-            logger.info("File path: {}".format(file_path))
-
-            with open(file_path, mode="rb") as img:
-                imgstr = base64.b64encode(img.read())
-
-            response = upload_file(imgstr, filename)
+            response = upload_file(file)
 
             object_url = response.url
             logger.info("File uploaded successfully: {}".format(object_url))
-
-            # delete file locally
-            os.remove(filename)
 
             user = User.query.filter_by(id=int(user_id)).first()
 
@@ -161,27 +142,25 @@ def upload_picture(user_id):
             }), 200
 
     except Exception as e:
-        try:
-            logger.error("Error uploading file: {}".format(e))
-            os.remove(filename)
-        except:
-            pass
-        finally:
-            return jsonify({"message": str(e), "status": False}), 200
+        return jsonify({
+            "message": str(e),
+            "status": False
+        }), 200
 
 
 @user_blueprint.route('/users/update_info', methods=['PATCH'])
 @authenticate
 def update_user_info(user_id):
     """Update user info"""
-    post_data = request.get_json()
+    # get data from form data
+    form_data = request.form.to_dict()
 
     response_object = {
         'status': False,
         'message': 'Invalid payload.',
     }
 
-    if not post_data:
+    if not form_data:
         return jsonify(response_object), 200
 
     try:
@@ -190,67 +169,65 @@ def update_user_info(user_id):
         field_types = {
             "firstname": str, "lastname": str, "email": str,
             "password": str, "dob": str, "gender": str,
-            "mobile_no": str, "profile_picture": str, "active": bool,
-            "location": dict
+            "mobile_no": str, "address": str, "city": str,
+            "state": str, "country": str, "zipcode": str
         }
 
-        post_data = field_type_validator(post_data, field_types)
-        if post_data.get("email"):
-            email_validator(post_data.get("email"))
+        form_data = field_type_validator(form_data, field_types)
+        if form_data.get("email"):
+            email_validator(form_data.get("email"))
 
-        password = post_data.get('password')
+        password = form_data.get('password')
+        file_obj = request.files.get('file')
 
         if password:
             user.password = bcrypt.generate_password_hash(
                 password, current_app.config.get("BCRYPT_LOG_ROUNDS")).decode()
 
-        user.firstname = post_data.get('firstname') or user.firstname
-        user.lastname = post_data.get('lastname') or user.lastname
-        user.email = post_data.get('email') or user.email
-        user.mobile_no = post_data.get("mobile_no") or user.mobile_no
-        user.gender = post_data.get("gender") or user.gender
-        user.dob = post_data.get("dob") or user.dob
-        user.profile_picture = post_data.get(
-            'profile_picture') or user.profile_picture
-        user.active = post_data.get('active') or user.active
+        if file_obj:
+            response = upload_file(file_obj)
+            user.profile_picture = response.url or user.profile_picture
+
+        user.firstname = form_data.get('firstname') or user.firstname
+        user.lastname = form_data.get('lastname') or user.lastname
+        user.email = form_data.get('email') or user.email
+        user.mobile_no = form_data.get("mobile_no") or user.mobile_no
+        user.gender = form_data.get("gender") or user.gender
+        user.dob = form_data.get("dob") or user.dob
 
         user.update()
 
-        loc = Location.query.filter_by(user_id=user_id).first()
+        location = Location.query.filter_by(user_id=user_id).first()
 
-        if post_data.get("location"):
-            field_types = {
-                "address": str, "city": str, "state": str,
-                "country": str, "zipcode": str
-            }
+        if not location and form_data.get("address"):
+            required_fields = ["address", "city",
+                               "state", "country", "zipcode"]
 
-            location = post_data.get("location")
-            location = field_type_validator(location, field_types)
+            required_validator(form_data, required_fields)
 
-            if not loc:
-                loc = Location(
-                    address=location.get("address"),
-                    city=location.get("city"),
-                    state=location.get("state"),
-                    country=location.get("country"),
-                    zipcode=location.get("zipcode"),
-                    user_id=user_id
-                )
+            location = Location(
+                address=form_data.get("address"),
+                city=form_data.get("city"),
+                state=form_data.get("state"),
+                country=form_data.get("country"),
+                zipcode=form_data.get("zipcode"),
+                user_id=user_id
+            )
 
-                loc.insert()
+            location.insert()
 
-            else:
-                loc.address = location.get("address") or loc.address
-                loc.city = location.get("city") or loc.city
-                loc.state = location.get("state") or loc.state
-                loc.country = location.get("country") or loc.country
-                loc.zipcode = location.get("zipcode") or loc.zipcode
+        else:
+            location.address = form_data.get("address") or location.address
+            location.city = form_data.get("city") or location.city
+            location.state = form_data.get("state") or location.state
+            location.country = form_data.get("country") or location.country
+            location.zipcode = form_data.get("zipcode") or location.zipcode
 
-                loc.update()
+            location.update()
 
         updated_user = user.to_json()
 
-        updated_user['location'] = loc.to_json() if loc else None
+        updated_user['location'] = location.to_json() if location else None
 
         response_object['status'] = True
         response_object['message'] = 'User info updated successfully.'
