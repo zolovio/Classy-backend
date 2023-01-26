@@ -4,7 +4,7 @@ import traceback
 from flask import jsonify, request
 from project.exceptions import APIError
 
-logger = logging.getLogger('Alpha-AI')
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
@@ -13,7 +13,7 @@ def handle_exception(ex):
 
     if isinstance(ex, APIError):
         response_data = {
-            "status": "failed",
+            "status": False,
             "message": str(ex)
         }
 
@@ -22,7 +22,7 @@ def handle_exception(ex):
     if hasattr(ex, 'code') and ex.code == 404:
 
         response_data = {
-            "status": "failed",
+            "status": False,
             "message": "Requested resource not found"
         }
         return jsonify(response_data), 404
@@ -33,7 +33,7 @@ def handle_exception(ex):
         logger.error('Error: Request {} has failed with exception: {}'.format(request, repr(tb)))
 
         response_data = {
-            "status": "failed",
+            "status": False,
             "message": "Something went wrong, please inform us if this issue did not get resolve soon",
             "error": str(ex),
         }

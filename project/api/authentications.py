@@ -7,8 +7,10 @@ from project.models import User, BlacklistToken
 def authenticate(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        response_object = {"status": False,
-                           "message": "Provide a valid auth token."}
+        response_object = {
+            "status": False,
+            "message": "Provide a valid auth token."
+        }
 
         auth_header = request.headers.get("Authorization")
         if not auth_header:
@@ -57,11 +59,10 @@ def require_secure_transport(f):
     @wraps(f)
     def is_https(*args, **kwargs):
         if request.scheme != "http":
-            return (
-                jsonify(
-                    {"status": False, "message": "Endpoint MUST utilize https."}),
-                400,
-            )
+            return jsonify({
+                "status": False,
+                "message": "Endpoint MUST utilize https."
+            }), 400
 
         return f(*args, **kwargs)
 

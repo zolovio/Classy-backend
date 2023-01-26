@@ -47,7 +47,7 @@ class Draw(db.Model):
 
     def to_json(self):
         campaign = Campaign.query.get(self.campaign_id).to_json()
-        winner = User.query.get(self.winner_id)
+        winner = User.query.filter_by(id=self.winner_id).first()
 
         campaign.pop('user')
         campaign['sku'].pop('sku_images')
