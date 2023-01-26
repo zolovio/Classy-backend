@@ -80,7 +80,7 @@ def refresh_campaigns():
         # get draw for campaign
         draw = Draw.query.filter_by(campaign_id=campaign.id).first()
 
-        if sku.quantity != sku.number_delivered and not campaign.is_active:
+        if sku.quantity != sku.number_sold and not campaign.is_active:
             # set campaign as inactive
             campaign.end_date = None
             campaign.is_active = True
@@ -91,16 +91,24 @@ def refresh_campaigns():
             draw.end_date = None
             draw.update()
 
-        elif sku.quantity == sku.number_delivered and campaign.is_active:
-            # set campaign as inactive
-            campaign.end_date = datetime.now()
-            campaign.is_active = False
-            campaign.update()
+        elif campaign.is_active:
+            if sku.quantity == sku.number_delivered or sku.quantity == sku.number_sold:
+                # set campaign as inactive
+                campaign.end_date = datetime.now()
+                campaign.is_active = False
+                campaign.update()
 
-            # set draw as active
-            draw.start_date = datetime.now()
-            draw.end_date = draw.start_date + timedelta(days=7)
-            draw.update()
+            if sku.quantity == sku.number_delivered:
+                # set draw as active
+                draw.start_date = datetime.now()
+                draw.end_date = draw.start_date + timedelta(days=7)
+                draw.update()
+
+            elif sku.quantity == sku.number_sold:
+                # set draw as inactive
+                draw.start_date = None
+                draw.end_date = None
+                draw.update()
 
     # with open('cronjob.log', 'a') as f:
     #     f.write(
