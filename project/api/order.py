@@ -5,7 +5,6 @@ from datetime import datetime
 from flask import Blueprint, jsonify, request
 
 from project import db
-from project.exceptions import APIError
 from project.api.utils import refresh_campaigns
 from project.api.authentications import authenticate
 from project.api.validators import field_type_validator, required_validator
@@ -144,6 +143,8 @@ def create_order(user_id):
         shopping_cart.is_active = False
         shopping_cart.update()
 
+        refresh_campaigns()
+
         response_object['status'] = True
         response_object['message'] = 'Order created successfully'
         response_object['data'] = {
@@ -250,7 +251,13 @@ def update_order(user_id, order_id):
                     (quantity - order_sku.quantity)
 
             if quantity == 0:
+                coupon = Coupon.query.filter_by(
+                    user_id=user_id,
+                    sku_stock_id=order_sku.sku_stock_id
+                ).first()
+
                 order_sku.delete()
+                coupon.delete()
 
             else:
                 order_sku.quantity = quantity
@@ -261,6 +268,8 @@ def update_order(user_id, order_id):
         order.shipping_fee = shipping_fee or order.shipping_fee
         order.location_id = location_id or order.location_id
         order.update()
+
+        refresh_campaigns()
 
         response_object['status'] = True
         response_object['message'] = 'Order updated successfully'
